@@ -38,6 +38,17 @@ assert.strictEqual(
 );
 assert.ok(fs.existsSync(p3), 'debe quedar una config por defecto nueva en la ruta original');
 
+// --- ilegible pero existente: jamas escribir encima ---
+// Un directorio en la ruta del config da EISDIR al leer, que es un error
+// distinto de "no existe" y sirve para simular un bloqueo o unos permisos
+// malos sin depender del antivirus de turno.
+const p6 = path.join(dir, 'bloqueado.json');
+fs.mkdirSync(p6);
+const c6 = loadConfig(p6);
+assert.ok(Array.isArray(c6.wheels), 'debe arrancar con la config por defecto');
+assert.ok(fs.statSync(p6).isDirectory(), 'no debe haber tocado lo que ya habia en esa ruta');
+assert.ok(!fs.existsSync(p6 + '.tmp'), 'no debe ni intentar escribir');
+
 // --- migracion desde el formato viejo (pinned -> wheels) ---
 const p4 = path.join(dir, 'legacy.json');
 fs.writeFileSync(

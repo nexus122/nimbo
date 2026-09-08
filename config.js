@@ -32,7 +32,16 @@ function loadConfig(configPath) {
   let raw;
   try {
     raw = fs.readFileSync(configPath, 'utf-8');
-  } catch {
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      // El fichero esta ahi pero no se deja leer ahora mismo: un antivirus
+      // mirandolo, un bloqueo momentaneo, permisos. Devolvemos la config por
+      // defecto SIN guardar nada, porque escribir aqui destruiria las ruedas
+      // del usuario por un fallo que probablemente no se repita al arrancar
+      // otra vez. Que la sesion salga vacia es molesto; perderlo todo, no.
+      console.error(`[config] "${configPath}" existe pero no se pudo leer, se arranca en blanco sin tocarlo:`, err.message);
+      return defaultConfig();
+    }
     // No existe: primera ejecucion. Crear la config por defecto es correcto.
     const config = defaultConfig();
     saveConfig(configPath, config);
