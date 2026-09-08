@@ -316,6 +316,13 @@ function renderTree(items, container, depth) {
     row.className = 'tree-row';
     row.style.marginLeft = `${depth * 18}px`;
 
+    // La posicion en el array ES la tecla 1-9 que abre el elemento en la
+    // rueda, asi que se muestra para que reordenar no sea una sorpresa.
+    const pos = document.createElement('span');
+    pos.className = 'tree-pos';
+    pos.textContent = idx + 1;
+    row.appendChild(pos);
+
     if (item.type === 'app') {
       const img = document.createElement('img');
       img.className = 'tree-icon';
@@ -367,6 +374,43 @@ function renderTree(items, container, depth) {
       label.appendChild(document.createTextNode('Cerrar si abierto'));
       row.appendChild(label);
     }
+
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'tree-icon-btn';
+    renameBtn.textContent = '✏️';
+    renameBtn.title = 'Renombrar';
+    renameBtn.addEventListener('click', async () => {
+      const name = await showPrompt('Nuevo nombre:', item.name);
+      if (!name) return;
+      item.name = name;
+      renderAll();
+    });
+    row.appendChild(renameBtn);
+
+    // Subir/bajar en vez de arrastrar: menos codigo, funciona con teclado y
+    // no hace falta ninguna libreria. Se deshabilitan en los extremos en vez
+    // de dejarlos sin efecto, para que quede claro por que no hacen nada.
+    const upBtn = document.createElement('button');
+    upBtn.className = 'tree-icon-btn';
+    upBtn.textContent = '▲';
+    upBtn.title = 'Subir';
+    upBtn.disabled = idx === 0;
+    upBtn.addEventListener('click', () => {
+      [items[idx - 1], items[idx]] = [items[idx], items[idx - 1]];
+      renderAll();
+    });
+    row.appendChild(upBtn);
+
+    const downBtn = document.createElement('button');
+    downBtn.className = 'tree-icon-btn';
+    downBtn.textContent = '▼';
+    downBtn.title = 'Bajar';
+    downBtn.disabled = idx === items.length - 1;
+    downBtn.addEventListener('click', () => {
+      [items[idx], items[idx + 1]] = [items[idx + 1], items[idx]];
+      renderAll();
+    });
+    row.appendChild(downBtn);
 
     const delBtn = document.createElement('button');
     delBtn.className = 'tree-del';
