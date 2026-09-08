@@ -48,7 +48,7 @@ function activate(item) {
   } else if (item.type === 'link') {
     window.opie.openLink(item.url);
   } else {
-    window.opie.launchApp(item.execPath, item.toggleClose !== false);
+    window.opie.launchApp(item.execPath, item.toggleClose !== false, item.args);
   }
 }
 

@@ -297,20 +297,7 @@ ipcMain.handle('pick-icon-file', async () => {
   return `data:${mime};base64,${buffer.toString('base64')}`;
 });
 
-// Busca los argumentos guardados para execPath en la config actual. El IPC
-// de lanzar solo recibe la ruta (ver preload.js/radial.js, fuera de lo que
-// toca este cambio), asi que en vez de tocar esos ficheros miramos la config
-// que ya tenemos cargada aqui mismo.
-function findArgsForExecPath(execPath) {
-  const wheels = loadConfig().wheels || [];
-  for (const wheel of wheels) {
-    const found = (wheel.items || []).find((it) => it.type === 'app' && it.execPath === execPath && it.args);
-    if (found) return found.args;
-  }
-  return '';
-}
-
-ipcMain.handle('launch-app', async (_evt, execPath, toggleClose = true) => {
+ipcMain.handle('launch-app', async (_evt, execPath, toggleClose = true, args = '') => {
   hideRadial();
 
   const running = toggleClose ? await findRunningProcesses(execPath) : [];
@@ -326,7 +313,6 @@ ipcMain.handle('launch-app', async (_evt, execPath, toggleClose = true) => {
     return;
   }
 
-  const args = findArgsForExecPath(execPath);
   if (args) {
     // shell.openPath no sabe pasar argumentos, asi que con argumentos usamos
     // spawn desligado (detached + stdio ignore + unref) para que el programa

@@ -16,7 +16,7 @@ contextBridge.exposeInMainWorld('opie', {
   pickIconFile: () => ipcRenderer.invoke('pick-icon-file'),
   getAutostart: () => ipcRenderer.invoke('get-autostart'),
   setAutostart: (enabled) => ipcRenderer.invoke('set-autostart', enabled),
-  launchApp: (execPath, toggleClose) => ipcRenderer.invoke('launch-app', execPath, toggleClose),
+  launchApp: (execPath, toggleClose, args) => ipcRenderer.invoke('launch-app', execPath, toggleClose, args),
   openLink: (url) => ipcRenderer.invoke('open-link', url),
   closeRadial: () => ipcRenderer.invoke('close-radial'),
   openSettings: () => ipcRenderer.invoke('open-settings'),
