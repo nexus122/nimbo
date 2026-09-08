@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
-const { scanApps } = require('./appScanner');
+const { scanApps, appFromPath } = require('./appScanner');
 const { findRunningProcesses, closeProcesses } = require('./processUtils');
 
 // Evita un crash nativo conocido de Electron en Windows 10/11: la feature
@@ -268,6 +268,24 @@ ipcMain.handle('check-shortcut', (_evt, accelerator) => {
 });
 
 ipcMain.handle('scan-apps', () => scanApps());
+
+// Las tres formas de anadir un programa sin escanear nada: elegirlo en el
+// dialogo de archivos, soltarlo sobre la ventana, o pegar su ruta. Las tres
+// acaban en appFromPath(), que es quien valida.
+ipcMain.handle('pick-app-file', async () => {
+  const result = await dialog.showOpenDialog({
+    title: 'Elegir programa',
+    properties: ['openFile'],
+    filters: [
+      { name: 'Programas y accesos directos', extensions: ['exe', 'lnk'] },
+      { name: 'Todos los archivos', extensions: ['*'] },
+    ],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return appFromPath(result.filePaths[0]);
+});
+
+ipcMain.handle('app-from-path', (_evt, filePath) => appFromPath(filePath));
 
 ipcMain.handle('get-autostart', () => getAutostart());
 ipcMain.handle('set-autostart', (_evt, enabled) => {

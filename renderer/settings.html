@@ -56,6 +56,41 @@
       .small-btn:disabled:hover {
         background: rgba(255, 255, 255, 0.06);
       }
+      #picker-actions {
+        display: flex;
+        gap: 8px;
+        padding: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      #picker-actions .small-btn {
+        flex: 1;
+        text-align: center;
+      }
+      #picker-empty {
+        padding: 22px 16px;
+        text-align: center;
+        color: #888;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+      #drop-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        background: rgba(61, 126, 255, 0.18);
+        border: 3px dashed #3d7eff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        color: #fff;
+        pointer-events: none;
+        text-align: center;
+        padding: 20px;
+      }
+      #drop-overlay[hidden] {
+        display: none;
+      }
       #picker-note {
         font-size: 11px;
         color: #ffcf7d;
@@ -480,13 +515,25 @@
     <div id="picker-overlay" hidden>
       <div id="picker">
         <div id="picker-header">
-          <input id="picker-search" placeholder="Buscar programa..." />
+          <input id="picker-search" placeholder="Buscar entre los instalados..." disabled />
           <button id="picker-close" class="small-btn">Cerrar</button>
+        </div>
+        <div id="picker-actions">
+          <button id="picker-browse" class="small-btn">🗂 Examinar...</button>
+          <button id="picker-paste" class="small-btn">📋 Pegar ruta...</button>
+          <button id="picker-scan" class="small-btn">🔍 Buscar instalados</button>
+        </div>
+        <div id="picker-empty">
+          Arrastra aquí un programa o un acceso directo.<br />
+          O usa <b>Examinar</b>, pega su ruta, o busca entre los instalados
+          (tarda unos segundos: los escanea todos).
         </div>
         <div id="picker-list"></div>
         <div id="picker-note"></div>
       </div>
     </div>
+
+    <div id="drop-overlay" hidden></div>
 
     <div id="prompt-overlay" hidden>
       <div id="prompt-box">

@@ -10,7 +10,7 @@
     "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "test": "node test_radial.js"
+    "test": "node test_radial.js && node test_appscanner.js"
   },
   "devDependencies": {
     "electron": "^32.0.0",

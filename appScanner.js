@@ -73,6 +73,65 @@ $out | ConvertTo-Json -Compress -Depth 5
   return list;
 }
 
+// Resuelve un unico .lnk. Usamos PowerShell por el mismo motivo que el
+// escaneo masivo de arriba: shell.readShortcutLink() de Electron tumba el
+// proceso entero ante accesos directos mal formados, y aqui el fichero lo
+// elige el usuario, asi que puede ser cualquier cosa.
+async function resolveShortcutTarget(lnkPath) {
+  const literal = `'${lnkPath.replace(/'/g, "''")}'`;
+  const script = `
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+$sh = New-Object -ComObject WScript.Shell
+$sh.CreateShortcut(${literal}).TargetPath
+`;
+  const encoded = Buffer.from(script, 'utf16le').toString('base64');
+  try {
+    const { stdout } = await execFileAsync(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded],
+      { encoding: 'utf8' }
+    );
+    return stdout.replace(/^﻿/, '').trim() || null;
+  } catch (err) {
+    console.error('[appScanner] no se pudo resolver el acceso directo:', err.message);
+    return null;
+  }
+}
+
+// Convierte una ruta suelta en un item de la rueda. Es el punto por el que
+// pasan TODAS las formas de anadir un programa a mano (dialogo de archivos,
+// arrastrar y soltar, pegar la ruta), asi que la validacion vive aqui una
+// sola vez. Devuelve { app } o { error } con un mensaje para el usuario.
+async function appFromPath(rawPath) {
+  let target = String(rawPath || '').trim().replace(/^"(.*)"$/, '$1');
+  if (!target) return { error: 'Ruta vacía.' };
+
+  // El nombre sale del fichero que ha elegido el usuario, no del destino: un
+  // acceso directo llamado "Google Chrome" apunta a "chrome.exe", y el nombre
+  // bueno es el primero.
+  const name = path.basename(target, path.extname(target));
+
+  if (target.toLowerCase().endsWith('.lnk')) {
+    if (!fs.existsSync(target)) return { error: `No existe: ${target}` };
+    const resolved = await resolveShortcutTarget(target);
+    if (!resolved) return { error: 'No se ha podido leer ese acceso directo.' };
+    target = resolved;
+  }
+
+  if (!target.toLowerCase().endsWith('.exe')) {
+    return { error: 'Sólo se pueden añadir programas (.exe) o accesos directos (.lnk).' };
+  }
+  if (!fs.existsSync(target)) return { error: `No existe: ${target}` };
+
+  let icon = '';
+  try {
+    icon = (await app.getFileIcon(target, { size: 'large' })).toDataURL();
+  } catch (err) {
+    console.log('[appScanner] getFileIcon fallo para', target, ':', err.message);
+  }
+  return { app: { name, execPath: target, icon } };
+}
+
 async function scanApps() {
   const dirs = getStartMenuDirs();
   console.log('[scanApps] directorios:', dirs);
@@ -123,4 +182,4 @@ async function scanApps() {
   return apps;
 }
 
-module.exports = { scanApps };
+module.exports = { scanApps, appFromPath };

@@ -493,30 +493,70 @@ function startCapture(wheel, btn) {
 
 // --- Picker de programas (escaneo perezoso) ---
 
-async function openPicker(targetItems) {
+// Abrir el picker ya no dispara el escaneo: recorrer todo el menu Inicio
+// tarda varios segundos y casi nunca hace falta, porque normalmente ya sabes
+// que programa quieres. El escaneo es ahora una opcion mas, bajo peticion.
+function openPicker(targetItems) {
   pickerTargetItems = targetItems;
-  const overlay = document.getElementById('picker-overlay');
-  const searchInput = document.getElementById('picker-search');
-  overlay.hidden = false;
-  searchInput.value = '';
-  searchInput.disabled = true; // evita escribir mientras aun no hay datos que filtrar
-  const listEl = document.getElementById('picker-list');
-  listEl.textContent = 'Escaneando programas instalados...';
+  document.getElementById('picker-overlay').hidden = false;
   document.getElementById('picker-note').textContent = '';
+  const searchInput = document.getElementById('picker-search');
+  searchInput.value = '';
+  searchInput.disabled = !scannedAppsCache;
 
-  if (!scannedAppsCache) {
-    try {
-      scannedAppsCache = await window.opie.scanApps();
-    } catch (err) {
-      listEl.textContent = 'No se pudo escanear los programas instalados.';
-      console.error(err);
-      return;
-    }
+  if (scannedAppsCache) {
+    document.getElementById('picker-empty').hidden = true;
+    renderPickerList('');
+    searchInput.focus();
+  } else {
+    document.getElementById('picker-empty').hidden = false;
+    document.getElementById('picker-list').innerHTML = '';
   }
+}
 
+async function runScan() {
+  const listEl = document.getElementById('picker-list');
+  document.getElementById('picker-empty').hidden = true;
+  if (scannedAppsCache) {
+    // Ya escaneado en esta sesion: no repetimos los segundos de espera. Para
+    // ver programas instalados despues, se reabre la ventana de ajustes.
+    renderPickerList(document.getElementById('picker-search').value);
+    return;
+  }
+  listEl.textContent = 'Escaneando programas instalados...';
+  try {
+    scannedAppsCache = await window.opie.scanApps();
+  } catch (err) {
+    listEl.textContent = 'No se pudo escanear los programas instalados.';
+    console.error(err);
+    return;
+  }
+  const searchInput = document.getElementById('picker-search');
   searchInput.disabled = false;
   renderPickerList('');
   searchInput.focus();
+}
+
+// Anade un programa ya resuelto por el proceso principal. Devuelve true si
+// ha entrado. Es el punto comun de examinar / pegar / arrastrar.
+function addResolvedApp(targetItems, result) {
+  if (!result) return false; // el usuario ha cancelado el dialogo
+  if (result.error) {
+    setStatus(result.error, true);
+    return false;
+  }
+  if (targetItems.length >= MAX_ITEMS) {
+    setStatus(`Este nivel ya tiene el máximo de ${MAX_ITEMS} elementos.`, true);
+    return false;
+  }
+  if (targetItems.some((it) => it.type === 'app' && it.execPath === result.app.execPath)) {
+    setStatus(`"${result.app.name}" ya está en este nivel.`, true);
+    return false;
+  }
+  targetItems.push({ id: newId(), type: 'app', ...result.app, toggleClose: true });
+  renderAll();
+  setStatus(`Añadido "${result.app.name}".`);
+  return true;
 }
 
 function renderPickerList(filter) {
@@ -571,6 +611,24 @@ function renderPickerList(filter) {
   });
 }
 
+document.getElementById('picker-scan').addEventListener('click', runScan);
+
+document.getElementById('picker-browse').addEventListener('click', async () => {
+  const result = await window.opie.pickAppFile();
+  if (addResolvedApp(pickerTargetItems, result)) {
+    document.getElementById('picker-overlay').hidden = true;
+  }
+});
+
+document.getElementById('picker-paste').addEventListener('click', async () => {
+  const raw = await showPrompt('Pega la ruta del programa (.exe o .lnk):');
+  if (!raw) return;
+  const result = await window.opie.appFromPath(raw);
+  if (addResolvedApp(pickerTargetItems, result)) {
+    document.getElementById('picker-overlay').hidden = true;
+  }
+});
+
 document.getElementById('picker-search').addEventListener('input', (e) => renderPickerList(e.target.value));
 document.getElementById('picker-close').addEventListener('click', () => {
   document.getElementById('picker-overlay').hidden = true;
@@ -610,6 +668,66 @@ document.getElementById('save').addEventListener('click', async () => {
   } else {
     setStatus('Guardado ✓ (atajos actualizados)');
   }
+});
+
+// --- Arrastrar y soltar ---
+
+// Donde cae lo que sueltas: si el selector esta abierto, en el nivel que
+// estuvieras editando (puede ser una carpeta); si no, en la raiz de la rueda
+// seleccionada. Cualquier otra cosa seria adivinar.
+function dropTarget() {
+  const pickerOpen = !document.getElementById('picker-overlay').hidden;
+  if (pickerOpen && pickerTargetItems) return { items: pickerTargetItems, name: 'este nivel' };
+  const wheel = wheels.find((w) => w.id === selectedWheelId);
+  return wheel ? { items: wheel.items, name: `la rueda "${wheel.name}"` } : null;
+}
+
+const dropOverlay = document.getElementById('drop-overlay');
+// dragenter y dragleave saltan tambien al pasar por encima de cada elemento
+// hijo, asi que contamos entradas y salidas en vez de fiarnos de una sola.
+let dragDepth = 0;
+
+function hideDropOverlay() {
+  dragDepth = 0;
+  dropOverlay.hidden = true;
+}
+
+window.addEventListener('dragenter', (e) => {
+  e.preventDefault();
+  dragDepth++;
+  const target = dropTarget();
+  if (!target) dropOverlay.textContent = 'Crea una rueda antes de añadir programas.';
+  else if (target.items.length >= MAX_ITEMS) dropOverlay.textContent = `${target.name} ya tiene el máximo de ${MAX_ITEMS} elementos.`;
+  else dropOverlay.textContent = `Suelta para añadir a ${target.name}`;
+  dropOverlay.hidden = false;
+});
+
+window.addEventListener('dragover', (e) => e.preventDefault());
+
+window.addEventListener('dragleave', () => {
+  if (--dragDepth <= 0) hideDropOverlay();
+});
+
+window.addEventListener('drop', async (e) => {
+  // Sin esto, Electron navegaria la ventana al fichero soltado y perderias
+  // los cambios sin guardar.
+  e.preventDefault();
+  hideDropOverlay();
+
+  const target = dropTarget();
+  if (!target) {
+    setStatus('Crea una rueda antes de añadir programas.', true);
+    return;
+  }
+
+  const paths = Array.from(e.dataTransfer.files).map((f) => window.opie.pathForFile(f));
+  if (paths.length === 0) return;
+
+  let added = 0;
+  for (const filePath of paths) {
+    if (addResolvedApp(target.items, await window.opie.appFromPath(filePath))) added++;
+  }
+  if (paths.length > 1) setStatus(`Añadidos ${added} de ${paths.length}.`, added === 0);
 });
 
 init();

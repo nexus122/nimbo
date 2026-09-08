@@ -19,7 +19,8 @@ llamas.
   ir directo a un elemento, `Enter` para abrir, `Esc` para salir o retroceder.
 - **Toggle:** si el programa ya está abierto, volver a pulsarlo lo cierra.
   Configurable por elemento.
-- **Detecta tus programas solo,** leyendo los accesos directos del menú Inicio.
+- **Cuatro formas de añadir un programa:** arrastrarlo a la ventana, elegirlo
+  con el explorador, pegar su ruta, o buscar entre los instalados.
 - **Iconos personalizables** en carpetas y enlaces: emoji o imagen propia.
 - **Arranque con Windows** opcional, desde el menú de la bandeja.
 
@@ -97,6 +98,25 @@ Desde la bandeja → **Configurar...**, o pulsando el centro de la rueda.
 - **Añadir programa / enlace / carpeta.** Máximo **8 elementos por nivel** — la
   rueda tiene un tamaño fijo y a partir de ahí las etiquetas se solapan. Si
   necesitas más, agrupa en carpetas.
+
+### Añadir un programa
+
+Pulsando **+ Añadir programa** se abre un panel con cuatro caminos. Ninguno
+escanea nada salvo el último:
+
+| Cómo | Cuándo conviene |
+|---|---|
+| **Arrastrar y soltar** sobre la ventana | Lo más rápido: arrastra el `.exe` o su acceso directo desde el escritorio, el menú Inicio o el explorador. Admite varios a la vez. |
+| **🗂 Examinar...** | Cuando sabes dónde está pero no lo tienes a mano para arrastrar. |
+| **📋 Pegar ruta...** | Cuando ya tienes la ruta copiada. Acepta comillas alrededor, que es como la copia el explorador. |
+| **🔍 Buscar instalados** | El escaneo completo del menú Inicio. Tarda unos segundos, así que ya no se lanza solo: sólo si lo pides. |
+
+Se aceptan `.exe` y `.lnk`. De un acceso directo se resuelve el programa al que
+apunta, pero se conserva **el nombre del acceso directo** (arrastras "Google
+Chrome", no quieres que acabe llamándose "chrome").
+
+Lo que sueltes cae en el nivel que estés editando si el panel está abierto, o
+en la raíz de la rueda seleccionada si no.
 - **"Cerrar si abierto":** por elemento, decide si volver a lanzarlo cierra el
   programa en vez de abrir otra instancia.
 - Los cambios **no se guardan solos**: pulsa **Guardar todo**.
