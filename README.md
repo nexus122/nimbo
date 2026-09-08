@@ -21,6 +21,7 @@ llamas.
   Configurable por elemento.
 - **Cuatro formas de añadir un programa:** arrastrarlo a la ventana, elegirlo
   con el explorador, pegar su ruta, o buscar entre los instalados.
+- **Temas:** Grafito, Papel, Malva, o el que use Windows en cada momento.
 - **Iconos personalizables** en carpetas y enlaces: emoji o imagen propia.
 - **Arranque con Windows** opcional, desde el menú de la bandeja.
 
@@ -119,7 +120,9 @@ Lo que sueltes cae en el nivel que estés editando si el panel está abierto, o
 en la raíz de la rueda seleccionada si no.
 - **"Cerrar si abierto":** por elemento, decide si volver a lanzarlo cierra el
   programa en vez de abrir otra instancia.
-- Los cambios **no se guardan solos**: pulsa **Guardar todo**.
+- **Tema** (abajo a la izquierda): se aplica y se guarda al instante, no
+  espera al botón de Guardar.
+- El resto de cambios **no se guardan solos**: pulsa **Guardar todo**.
 
 La configuración vive en:
 
@@ -127,17 +130,36 @@ La configuración vive en:
 %APPDATA%\opie-launcher\config.json
 ```
 
+## Temas
+
+Cuatro opciones: **Grafito** (pizarra fría con acento latón), **Papel** (blanco
+frío con tinta teal), **Malva** (berenjena con coral) y **Automático**, que
+sigue el modo claro/oscuro de Windows sin necesidad de reiniciar.
+
+Todos los colores viven en `renderer/theme.css` como variables CSS, y las
+comparten la rueda y la ventana de ajustes. Añadir un tema es añadir un bloque
+`[data-theme='...']` ahí y una entrada en la lista `THEMES` de `settings.js`;
+no hay ningún color escrito a mano fuera de ese fichero.
+
+Para verlos los tres a la vez sin abrir la aplicación, abre
+`preview/themes.html` en el navegador (doble clic, no hace falta servidor). Es
+la rueda real con datos de mentira: sirve para juzgar paletas y para probar el
+sector de luz con las flechas.
+
 ## Estructura
 
 ```
 main.js            Proceso principal: ventanas, atajos globales, bandeja, IPC
 preload.js         Puente aislado renderer ↔ main (window.opie)
-appScanner.js      Escaneo de programas instalados desde el menú Inicio
+appScanner.js      Escaneo del menú Inicio y alta de programas sueltos
 processUtils.js    Detectar y cerrar procesos ya en marcha
 renderer/
+  theme.css             Paletas: todas las variables de color, para las dos ventanas
   radial.html/css/js    La rueda
   settings.html/js      La ventana de configuración
-test_radial.js     Check de la navegación por teclado (node test_radial.js)
+preview/themes.html   Las tres paletas lado a lado, sin arrancar la app
+test_radial.js        Check de la navegación del anillo
+test_appscanner.js    Check del alta de programas
 ```
 
 ## Notas de implementación

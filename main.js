@@ -244,8 +244,18 @@ ipcMain.handle('get-active-wheel', () => {
 ipcMain.handle('get-wheels-config', () => loadConfig().wheels);
 
 ipcMain.handle('save-wheels-config', (_evt, wheels) => {
-  saveConfig({ wheels });
+  // Conservamos el resto del config (el tema, y lo que venga despues): antes
+  // esto escribia { wheels } a secas y se llevaba por delante lo demas.
+  saveConfig({ ...loadConfig(), wheels });
   return { failed: registerShortcuts() };
+});
+
+ipcMain.handle('get-theme', () => loadConfig().theme || 'auto');
+
+ipcMain.handle('set-theme', (_evt, theme) => {
+  saveConfig({ ...loadConfig(), theme });
+  // La rueda no necesita aviso: se recarga cada vez que se abre.
+  return theme;
 });
 
 // Windows no ofrece ninguna forma de listar los atajos globales que ya estan

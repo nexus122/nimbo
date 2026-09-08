@@ -2,22 +2,23 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <link rel="stylesheet" href="theme.css" />
     <style>
       * {
         box-sizing: border-box;
       }
       body {
-        font-family: 'Segoe UI', sans-serif;
+        font-family: var(--font-ui);
         margin: 0;
-        background: #1e1e26;
-        color: #eee;
+        background: var(--bg);
+        color: var(--text);
         display: flex;
         flex-direction: column;
         height: 100vh;
       }
       header {
         padding: 12px 16px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        border-bottom: 1px solid var(--line);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -29,38 +30,38 @@
       }
       header p {
         font-size: 11px;
-        color: #999;
+        color: var(--text-dim);
         margin: 2px 0 0;
       }
       #status {
-        color: #9f9;
+        color: var(--ok);
         font-size: 12px;
         max-width: 420px;
         text-align: right;
       }
       #status.error {
-        color: #ff9d9d;
+        color: var(--danger);
       }
       .items-count {
         font-size: 10.5px;
-        color: #777;
+        color: var(--text-faint);
         align-self: center;
       }
       .items-count.full {
-        color: #ffcf7d;
+        color: var(--warn);
       }
       .small-btn:disabled {
         opacity: 0.4;
         cursor: not-allowed;
       }
       .small-btn:disabled:hover {
-        background: rgba(255, 255, 255, 0.06);
+        background: var(--fill-1);
       }
       #picker-actions {
         display: flex;
         gap: 8px;
         padding: 10px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        border-bottom: 1px solid var(--line);
       }
       #picker-actions .small-btn {
         flex: 1;
@@ -69,7 +70,7 @@
       #picker-empty {
         padding: 22px 16px;
         text-align: center;
-        color: #888;
+        color: var(--text-faint);
         font-size: 12px;
         line-height: 1.6;
       }
@@ -77,13 +78,13 @@
         position: fixed;
         inset: 0;
         z-index: 20;
-        background: rgba(61, 126, 255, 0.18);
-        border: 3px dashed #3d7eff;
+        background: var(--accent-soft);
+        border: 3px dashed var(--accent);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 16px;
-        color: #fff;
+        color: var(--text);
         pointer-events: none;
         text-align: center;
         padding: 20px;
@@ -93,7 +94,7 @@
       }
       #picker-note {
         font-size: 11px;
-        color: #ffcf7d;
+        color: var(--warn);
         padding: 0 10px 8px;
       }
       #picker-note:empty {
@@ -103,13 +104,14 @@
         padding: 8px 18px;
         font-size: 13px;
         cursor: pointer;
-        background: #3d7eff;
-        color: white;
+        background: var(--accent);
+        color: var(--on-accent);
         border: none;
         border-radius: 6px;
+        font-weight: 600;
       }
       #save:hover {
-        background: #5a90ff;
+        background: var(--accent-hi);
       }
       #layout {
         flex: 1;
@@ -118,7 +120,7 @@
       }
       #sidebar {
         width: 210px;
-        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        border-right: 1px solid var(--line);
         padding: 12px;
         overflow-y: auto;
         display: flex;
@@ -127,7 +129,7 @@
       #sidebar h2 {
         font-size: 12px;
         text-transform: uppercase;
-        color: #999;
+        color: var(--text-dim);
         margin: 0 0 8px;
       }
       #wheel-list {
@@ -143,32 +145,90 @@
         border: 1px solid transparent;
       }
       .wheel-item:hover {
-        background: rgba(255, 255, 255, 0.05);
+        background: var(--fill-1);
       }
       .wheel-item.selected {
-        background: rgba(61, 126, 255, 0.18);
-        border-color: rgba(61, 126, 255, 0.5);
+        background: var(--accent-soft);
+        border-color: var(--accent-line);
       }
       .wheel-item-name {
         font-size: 13px;
       }
       .wheel-item-shortcut {
         font-size: 10px;
-        color: #999;
+        color: var(--text-dim);
         margin-top: 2px;
       }
       #add-wheel {
         padding: 7px 10px;
         font-size: 12px;
         cursor: pointer;
-        background: rgba(255, 255, 255, 0.06);
-        color: #eee;
-        border: 1px dashed rgba(255, 255, 255, 0.25);
+        background: var(--fill-1);
+        color: var(--text);
+        border: 1px dashed var(--line-hi);
         border-radius: 6px;
       }
       #add-wheel:hover {
-        background: rgba(255, 255, 255, 0.1);
+        background: var(--fill-2);
       }
+      /* Selector de tema. Cada muestra lleva su propio data-theme, asi que
+         hereda las variables de esa paleta y se pinta sola: no hay una segunda
+         lista de colores en el JS que se pueda desincronizar de theme.css. */
+      #theme-picker {
+        margin-top: auto;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+      #theme-list {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .theme-item {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        background: none;
+        color: var(--text-dim);
+        font-family: inherit;
+        font-size: 12px;
+        text-align: left;
+        cursor: pointer;
+        width: 100%;
+      }
+      .theme-item:hover {
+        background: var(--fill-1);
+        color: var(--text);
+      }
+      .theme-item.selected {
+        background: var(--accent-soft);
+        border-color: var(--accent-line);
+        color: var(--text);
+      }
+      .swatch {
+        position: relative;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        flex: none;
+        background: var(--ring);
+        border: 1px solid var(--ring-line);
+      }
+      .swatch::after {
+        content: '';
+        position: absolute;
+        inset: 4px 4px 4px 50%;
+        border-radius: 0 10px 10px 0;
+        background: var(--accent);
+      }
+      .theme-hint {
+        color: var(--text-faint);
+        font-size: 10.5px;
+      }
+
       #main {
         flex: 1;
         padding: 16px 20px;
@@ -184,15 +244,15 @@
         font-size: 16px;
         background: transparent;
         border: none;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-        color: #eee;
+        border-bottom: 1px solid var(--line-hi);
+        color: var(--text);
         padding: 4px 2px;
         flex: 1;
         max-width: 320px;
       }
       .wheel-name-input:focus {
         outline: none;
-        border-bottom-color: #3d7eff;
+        border-bottom-color: var(--accent);
       }
       button {
         font-family: inherit;
@@ -201,46 +261,46 @@
         padding: 6px 10px;
         font-size: 12px;
         cursor: pointer;
-        background: rgba(255, 80, 80, 0.15);
-        color: #ff9d9d;
-        border: 1px solid rgba(255, 80, 80, 0.35);
+        background: var(--danger-bg);
+        color: var(--danger);
+        border: 1px solid var(--danger-line);
         border-radius: 6px;
       }
       .danger-btn:hover {
-        background: rgba(255, 80, 80, 0.28);
+        background: var(--danger-bg);
       }
       .shortcut-btn {
         padding: 6px 10px;
         font-size: 12px;
         cursor: pointer;
-        background: rgba(255, 255, 255, 0.08);
-        color: #eee;
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: var(--line);
+        color: var(--text);
+        border: 1px solid var(--line-hi);
         border-radius: 6px;
-        font-family: 'Consolas', monospace;
+        font-family: var(--font-mono);
       }
       .shortcut-btn.capturing {
-        background: rgba(61, 126, 255, 0.3);
-        border-color: #3d7eff;
+        background: var(--accent-soft);
+        border-color: var(--accent);
       }
       .shortcut-btn:hover {
-        background: rgba(255, 255, 255, 0.14);
+        background: var(--fill-3);
       }
       .small-btn {
         padding: 5px 9px;
         font-size: 11px;
         cursor: pointer;
-        background: rgba(255, 255, 255, 0.06);
-        color: #ccc;
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: var(--fill-1);
+        color: var(--text-dim);
+        border: 1px solid var(--line-hi);
         border-radius: 6px;
       }
       .small-btn:hover {
-        background: rgba(255, 255, 255, 0.12);
+        background: var(--fill-2);
       }
       #tree-root {
         margin-top: 16px;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        border-top: 1px solid var(--line);
         padding-top: 12px;
       }
       .tree-row {
@@ -251,7 +311,7 @@
         border-radius: 5px;
       }
       .tree-row:hover {
-        background: rgba(255, 255, 255, 0.04);
+        background: var(--fill-1);
       }
       .tree-icon {
         width: 20px;
@@ -268,7 +328,7 @@
       }
       .tree-toggle {
         font-size: 10.5px;
-        color: #aaa;
+        color: var(--text-dim);
         display: flex;
         align-items: center;
         gap: 4px;
@@ -292,14 +352,14 @@
         margin: 6px 0 10px;
       }
       #empty-hint {
-        color: #888;
+        color: var(--text-faint);
         font-size: 13px;
       }
 
       #picker-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.55);
+        background: var(--scrim);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -314,7 +374,7 @@
       #prompt-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.55);
+        background: var(--scrim);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -325,9 +385,9 @@
       }
       #prompt-box {
         width: 320px;
-        background: #23232d;
+        background: var(--surface);
         border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--fill-2);
         padding: 16px;
       }
       #prompt-title {
@@ -338,15 +398,15 @@
         width: 100%;
         padding: 7px 10px;
         font-size: 13px;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: var(--fill-1);
+        border: 1px solid var(--line-hi);
         border-radius: 6px;
-        color: #eee;
+        color: var(--text);
         margin-bottom: 12px;
       }
       #prompt-input:focus {
         outline: none;
-        border-color: #3d7eff;
+        border-color: var(--accent);
       }
       #prompt-actions {
         display: flex;
@@ -357,7 +417,7 @@
       #iconpicker-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.55);
+        background: var(--scrim);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -368,9 +428,9 @@
       }
       #iconpicker-box {
         width: 300px;
-        background: #23232d;
+        background: var(--surface);
         border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--fill-2);
         padding: 16px;
         display: flex;
         flex-direction: column;
@@ -389,14 +449,14 @@
         min-width: 0;
         padding: 7px 10px;
         font-size: 15px;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: var(--fill-1);
+        border: 1px solid var(--line-hi);
         border-radius: 6px;
-        color: #eee;
+        color: var(--text);
       }
       #iconpicker-emoji-input:focus {
         outline: none;
-        border-color: #3d7eff;
+        border-color: var(--accent);
       }
       #iconpicker-box .small-btn {
         width: 100%;
@@ -414,21 +474,21 @@
         font-size: 17px;
         line-height: 1;
         padding: 6px 0;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: var(--fill-1);
+        border: 1px solid var(--fill-2);
         border-radius: 6px;
         cursor: pointer;
       }
       #iconpicker-emoji-grid button:hover {
-        background: rgba(255, 255, 255, 0.18);
-        border-color: rgba(61, 126, 255, 0.5);
+        background: var(--fill-3);
+        border-color: var(--accent-line);
       }
       #picker {
         width: 460px;
         max-height: 70vh;
-        background: #23232d;
+        background: var(--surface);
         border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--fill-2);
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -437,20 +497,20 @@
         display: flex;
         gap: 8px;
         padding: 10px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        border-bottom: 1px solid var(--line);
       }
       #picker-search {
         flex: 1;
         padding: 7px 10px;
         font-size: 13px;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: var(--fill-1);
+        border: 1px solid var(--line-hi);
         border-radius: 6px;
-        color: #eee;
+        color: var(--text);
       }
       #picker-search:focus {
         outline: none;
-        border-color: #3d7eff;
+        border-color: var(--accent);
       }
       #picker-list {
         overflow-y: auto;
@@ -470,11 +530,11 @@
         text-align: center;
       }
       .picker-item:hover {
-        background: rgba(255, 255, 255, 0.06);
+        background: var(--fill-1);
       }
       .picker-item.added {
-        background: rgba(80, 200, 120, 0.15);
-        border-color: rgba(80, 200, 120, 0.4);
+        background: var(--accent-soft);
+        border-color: var(--accent-line);
       }
       .picker-item img {
         width: 30px;
@@ -494,7 +554,7 @@
         <p>Configura tus ruedas: qué contiene cada una y con qué atajo se abre.</p>
       </div>
       <div style="display:flex; align-items:center; gap:14px;">
-        <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:#ccc; cursor:pointer;">
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-dim); cursor:pointer;">
           <input type="checkbox" id="autostart-checkbox" />
           Iniciar con Windows
         </label>
@@ -508,6 +568,11 @@
         <h2>Ruedas</h2>
         <div id="wheel-list"></div>
         <button id="add-wheel">+ Nueva rueda</button>
+
+        <div id="theme-picker">
+          <h2>Tema</h2>
+          <div id="theme-list"></div>
+        </div>
       </aside>
       <main id="main"></main>
     </div>

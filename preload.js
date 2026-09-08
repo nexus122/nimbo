@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('opie', {
   getActiveWheel: () => ipcRenderer.invoke('get-active-wheel'),
   getWheelsConfig: () => ipcRenderer.invoke('get-wheels-config'),
   saveWheelsConfig: (wheels) => ipcRenderer.invoke('save-wheels-config', wheels),
+  getTheme: () => ipcRenderer.invoke('get-theme'),
+  setTheme: (theme) => ipcRenderer.invoke('set-theme', theme),
   scanApps: () => ipcRenderer.invoke('scan-apps'),
   pickAppFile: () => ipcRenderer.invoke('pick-app-file'),
   appFromPath: (filePath) => ipcRenderer.invoke('app-from-path', filePath),

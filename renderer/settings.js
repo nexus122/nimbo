@@ -153,7 +153,50 @@ function showIconPicker() {
   });
 }
 
+const THEMES = [
+  { id: 'auto', name: 'Automático', hint: 'según Windows' },
+  { id: 'grafito', name: 'Grafito' },
+  { id: 'papel', name: 'Papel' },
+  { id: 'malva', name: 'Malva' },
+];
+
+// El tema se guarda al momento, como el arranque con Windows: es una
+// preferencia, no parte de la configuracion de las ruedas, asi que no tiene
+// sentido que espere al boton de Guardar.
+function renderThemes(current) {
+  const list = document.getElementById('theme-list');
+  list.innerHTML = '';
+  THEMES.forEach((theme) => {
+    const btn = document.createElement('button');
+    btn.className = 'theme-item' + (theme.id === current ? ' selected' : '');
+
+    const swatch = document.createElement('span');
+    swatch.className = 'swatch';
+    swatch.dataset.theme = theme.id;
+    btn.appendChild(swatch);
+
+    btn.appendChild(document.createTextNode(theme.name));
+    if (theme.hint) {
+      const hint = document.createElement('span');
+      hint.className = 'theme-hint';
+      hint.textContent = theme.hint;
+      btn.appendChild(hint);
+    }
+
+    btn.addEventListener('click', async () => {
+      document.documentElement.dataset.theme = theme.id;
+      await window.opie.setTheme(theme.id);
+      renderThemes(theme.id);
+    });
+    list.appendChild(btn);
+  });
+}
+
 async function init() {
+  const theme = await window.opie.getTheme();
+  document.documentElement.dataset.theme = theme;
+  renderThemes(theme);
+
   wheels = await window.opie.getWheelsConfig();
   if (!wheels || wheels.length === 0) {
     wheels = [{ id: newId(), name: 'Principal', shortcut: 'Control+Shift+Space', items: [] }];

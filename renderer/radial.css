@@ -1,25 +1,83 @@
-html, body {
+/* El angulo del sector va registrado para poder animarlo: sin @property una
+   custom property salta de golpe en vez de interpolar. */
+@property --sweep-from {
+  syntax: '<angle>';
+  initial-value: -90deg;
+  inherits: false;
+}
+
+html,
+body {
   margin: 0;
   padding: 0;
   background: transparent;
   overflow: hidden;
   user-select: none;
-  font-family: 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
+  color: var(--text);
 }
 
 #wheel {
   position: relative;
   width: 480px;
   height: 480px;
+  animation: wheel-in 130ms cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+@keyframes wheel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.93);
+  }
+}
+
+/* --- El dial --- */
 
 .ring {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: rgba(20, 20, 30, 0.78);
-  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  background: var(--ring);
+  box-shadow: var(--shadow);
 }
+
+/* Bisel: dos aros finos, uno en el borde y otro marcando el hueco central.
+   Es lo que hace que lea como instrumento y no como circulo pintado. */
+.ring::before,
+.ring::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid var(--ring-line);
+}
+.ring::before {
+  inset: 6px;
+}
+.ring::after {
+  inset: 158px;
+}
+
+/* La pieza: un sector iluminado sobre el aro que sigue a la seleccion. */
+.sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from var(--sweep-from),
+    var(--glow) 0deg,
+    var(--glow-0) var(--sweep-size, 45deg),
+    var(--glow-0) 360deg
+  );
+  /* Recortado a una banda: sobre el disco entero seria una tarta, y lo que
+     queremos es que la luz viva en el aro. */
+  -webkit-mask: radial-gradient(circle at 50% 50%, transparent 55%, #000 56%, #000 98%, transparent 99%);
+  mask: radial-gradient(circle at 50% 50%, transparent 55%, #000 56%, #000 98%, transparent 99%);
+  opacity: 0;
+  transition: --sweep-from 130ms ease, opacity 130ms ease;
+  pointer-events: none;
+}
+
+/* --- Los huecos --- */
 
 .slice {
   position: absolute;
@@ -28,24 +86,19 @@ html, body {
   margin-left: -32px;
   margin-top: -32px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--slot);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.08s ease, background 0.08s ease;
+  transition: transform 90ms ease, background 90ms ease, box-shadow 90ms ease;
 }
 
 .slice:hover,
 .slice.selected {
-  background: rgba(255, 255, 255, 0.25);
-  transform: scale(1.15);
-}
-
-/* El resaltado del teclado necesita un aro propio: el fondo mas claro solo no
-   se distingue lo suficiente sobre los iconos claros. */
-.slice.selected {
-  box-shadow: 0 0 0 2px #3d7eff, 0 0 12px rgba(61, 126, 255, 0.6);
+  background: var(--slot-hi);
+  transform: scale(1.14);
+  box-shadow: 0 0 0 1px var(--accent-line);
 }
 
 .slice img {
@@ -56,71 +109,93 @@ html, body {
 
 .slice .folder-icon {
   font-size: 30px;
+  line-height: 1;
   pointer-events: none;
-}
-
-.slice.folder {
-  background: rgba(120, 170, 255, 0.14);
-}
-
-.slice.folder:hover,
-.slice.folder.selected {
-  background: rgba(120, 170, 255, 0.32);
 }
 
 #wheel-title {
   position: absolute;
   left: 50%;
-  top: 22px;
+  top: 26px;
   transform: translateX(-50%);
-  color: white;
-  font-size: 12px;
-  opacity: 0.75;
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   white-space: nowrap;
-  text-shadow: 0 1px 2px black;
   pointer-events: none;
 }
 
 .slice .label {
   position: absolute;
-  top: 68px;
+  top: 70px;
   font-size: 11px;
-  color: white;
+  color: var(--text);
   white-space: nowrap;
-  text-shadow: 0 1px 2px black;
   pointer-events: none;
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+}
+
+/* El numero es la via rapida de verdad, pero no debe competir con el nombre:
+   mismo tamano, mucho menos peso visual. */
+.slice .key {
+  font-family: var(--font-mono);
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
+.slice.selected .key {
+  color: var(--accent);
 }
 
 #center {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 70px;
-  height: 70px;
-  margin-left: -35px;
-  margin-top: -35px;
+  width: 68px;
+  height: 68px;
+  margin-left: -34px;
+  margin-top: -34px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--fill-1);
+  border: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 22px;
+  color: var(--text-dim);
+  font-size: 20px;
   cursor: pointer;
+  transition: background 90ms ease, color 90ms ease;
 }
 
 #center:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--fill-2);
+  color: var(--text);
 }
 
 #hint {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, 60px);
-  color: white;
-  font-size: 13px;
+  transform: translate(-50%, 62px);
+  color: var(--text-dim);
+  font-size: 12px;
   text-align: center;
-  width: 200px;
-  margin-left: -100px;
+  width: 220px;
+  margin-left: -110px;
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #wheel {
+    animation: none;
+  }
+  .slice,
+  .sweep,
+  #center {
+    transition: none;
+  }
 }

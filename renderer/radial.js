@@ -2,8 +2,14 @@ let wheelName = '';
 let stack = []; // pila de arrays de items: cada push() es entrar en una carpeta
 let slices = []; // los elementos DOM del nivel actual, en el mismo orden que los items
 let selected = -1; // indice seleccionado con el teclado; -1 = nada seleccionado
+let sweepEl = null; // el sector de luz que sigue a la seleccion
+// Angulo acumulado, no normalizado a 0-360: asi el sector siempre gira por el
+// camino corto. Con el angulo crudo, saltar del ultimo item al primero daria
+// una vuelta entera hacia atras.
+let sweepAngle = -90;
 
 async function init() {
+  document.documentElement.dataset.theme = await window.opie.getTheme();
   const wheel = await window.opie.getActiveWheel();
   if (!wheel) {
     renderEmpty();
@@ -20,6 +26,7 @@ function renderEmpty() {
   const ring = document.createElement('div');
   ring.className = 'ring';
   wheelEl.appendChild(ring);
+  sweepEl = null;
 
   const hint = document.createElement('div');
   hint.id = 'hint';
@@ -49,9 +56,30 @@ function goBack() {
   }
 }
 
+// Avanza `current` hasta apuntar a `target` por el camino mas corto. Devuelve
+// un angulo acumulado (puede salirse de 0-360 a proposito), para que el sector
+// nunca de la vuelta larga al saltar del ultimo item al primero.
+function shortestAngle(current, target) {
+  return current + ((((target - current) % 360) + 540) % 360) - 180;
+}
+
 function select(index) {
   slices.forEach((el, i) => el.classList.toggle('selected', i === index));
   selected = index;
+  if (!sweepEl) return;
+  const n = slices.length;
+  if (index === -1 || n === 0) {
+    sweepEl.style.opacity = '0';
+    return;
+  }
+  // El item i esta centrado en (i/n)*360 - 90; el sector se abre medio ancho
+  // antes para quedar centrado debajo.
+  const size = 360 / n;
+  const target = (index / n) * 360 - 90 - size / 2;
+  sweepAngle = shortestAngle(sweepAngle, target);
+  sweepEl.style.setProperty('--sweep-from', `${sweepAngle}deg`);
+  sweepEl.style.setProperty('--sweep-size', `${size}deg`);
+  sweepEl.style.opacity = '1';
 }
 
 // Siguiente indice al moverse por el anillo. Da la vuelta por los extremos
@@ -77,6 +105,10 @@ function renderLevel() {
   const ring = document.createElement('div');
   ring.className = 'ring';
   wheelEl.appendChild(ring);
+
+  sweepEl = document.createElement('div');
+  sweepEl.className = 'sweep';
+  wheelEl.appendChild(sweepEl);
 
   const items = stack[stack.length - 1];
   const isRoot = stack.length === 1;
@@ -140,7 +172,15 @@ function renderLevel() {
     const label = document.createElement('div');
     label.className = 'label';
     // El numero de atajo solo tiene sentido hasta el 9.
-    label.textContent = i < 9 ? `${i + 1}. ${item.name}` : item.name;
+    if (i < 9) {
+      const key = document.createElement('span');
+      key.className = 'key';
+      key.textContent = i + 1;
+      label.appendChild(key);
+    }
+    const nameEl = document.createElement('span');
+    nameEl.textContent = item.name;
+    label.appendChild(nameEl);
     slice.appendChild(label);
 
     wheelEl.appendChild(slice);
@@ -202,7 +242,7 @@ function onKeydown(e) {
 // En el navegador arrancamos; requerido desde node (test_radial.js) solo
 // exponemos las funciones puras, sin tocar el DOM que alli no existe.
 if (typeof document === 'undefined') {
-  module.exports = { nextIndex };
+  module.exports = { nextIndex, shortestAngle };
 } else {
   document.addEventListener('keydown', onKeydown);
   init();
