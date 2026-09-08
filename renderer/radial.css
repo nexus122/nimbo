@@ -1,0 +1,126 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+#wheel {
+  position: relative;
+  width: 480px;
+  height: 480px;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(20, 20, 30, 0.78);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+}
+
+.slice {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  margin-left: -32px;
+  margin-top: -32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.08s ease, background 0.08s ease;
+}
+
+.slice:hover,
+.slice.selected {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.15);
+}
+
+/* El resaltado del teclado necesita un aro propio: el fondo mas claro solo no
+   se distingue lo suficiente sobre los iconos claros. */
+.slice.selected {
+  box-shadow: 0 0 0 2px #3d7eff, 0 0 12px rgba(61, 126, 255, 0.6);
+}
+
+.slice img {
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+}
+
+.slice .folder-icon {
+  font-size: 30px;
+  pointer-events: none;
+}
+
+.slice.folder {
+  background: rgba(120, 170, 255, 0.14);
+}
+
+.slice.folder:hover,
+.slice.folder.selected {
+  background: rgba(120, 170, 255, 0.32);
+}
+
+#wheel-title {
+  position: absolute;
+  left: 50%;
+  top: 22px;
+  transform: translateX(-50%);
+  color: white;
+  font-size: 12px;
+  opacity: 0.75;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px black;
+  pointer-events: none;
+}
+
+.slice .label {
+  position: absolute;
+  top: 68px;
+  font-size: 11px;
+  color: white;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px black;
+  pointer-events: none;
+}
+
+#center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70px;
+  height: 70px;
+  margin-left: -35px;
+  margin-top: -35px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+#center:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, 60px);
+  color: white;
+  font-size: 13px;
+  text-align: center;
+  width: 200px;
+  margin-left: -100px;
+}

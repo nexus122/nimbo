@@ -1,0 +1,336 @@
+const { app, BrowserWindow, globalShortcut, screen, ipcMain, shell, Tray, Menu, nativeImage, dialog } = require('electron');
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+const { execFileSync } = require('child_process');
+const { scanApps } = require('./appScanner');
+const { findRunningProcesses, closeProcesses } = require('./processUtils');
+
+// Evita un crash nativo conocido de Electron en Windows 10/11: la feature
+// "Native Window Occlusion" choca con ventanas transparentes + always-on-top.
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+
+const CONFIG_PATH = path.join(app.getPath('userData'), 'config.json');
+const WHEEL_SIZE = 480;
+const ICON_PATH = path.join(__dirname, 'assets', 'icon.png');
+const TRAY_ICON = nativeImage.createFromPath(ICON_PATH).resize({ width: 16, height: 16 });
+
+let radialWindow = null;
+let settingsWindow = null;
+let tray = null;
+let activeWheelId = null;
+
+function id() {
+  return crypto.randomUUID();
+}
+
+function loadConfig() {
+  let raw = null;
+  try {
+    raw = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+  } catch {
+    raw = null;
+  }
+
+  if (!raw || !Array.isArray(raw.wheels)) {
+    // Migracion desde el formato viejo (una lista plana "pinned") o primera vez.
+    const legacyPinned = raw && Array.isArray(raw.pinned) ? raw.pinned : [];
+    raw = {
+      wheels: [
+        {
+          id: id(),
+          name: 'Principal',
+          shortcut: 'Control+Shift+Space',
+          items: legacyPinned.map((p) => ({
+            id: id(),
+            type: 'app',
+            name: p.name,
+            execPath: p.execPath,
+            icon: p.icon,
+            toggleClose: p.toggleClose !== false,
+          })),
+        },
+      ],
+    };
+    saveConfig(raw);
+  }
+  return raw;
+}
+
+function saveConfig(config) {
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+}
+
+// Ocultar la rueda pasa por aqui SIEMPRE. Cualquier cosa que la cierre
+// (perder el foco, lanzar una app, abrir ajustes) puede llegar cuando la
+// ventana ya esta destruida, y llamar a .hide() sobre una ventana destruida
+// lanza excepcion. Una sola guarda aqui cubre a todos los que la ocultan.
+function hideRadial() {
+  if (radialWindow && !radialWindow.isDestroyed()) radialWindow.hide();
+}
+
+function getCenteredPosition() {
+  const cursor = screen.getCursorScreenPoint();
+  const display = screen.getDisplayNearestPoint(cursor);
+  const { x, y, width, height } = display.workArea;
+  return {
+    x: Math.round(x + width / 2 - WHEEL_SIZE / 2),
+    y: Math.round(y + height / 2 - WHEEL_SIZE / 2),
+  };
+}
+
+function createRadialWindow() {
+  const pos = getCenteredPosition();
+  radialWindow = new BrowserWindow({
+    width: WHEEL_SIZE,
+    height: WHEEL_SIZE,
+    x: pos.x,
+    y: pos.y,
+    icon: ICON_PATH,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    movable: false,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+    },
+  });
+  radialWindow.setAlwaysOnTop(true, 'floating');
+  radialWindow.loadFile(path.join(__dirname, 'renderer', 'radial.html'));
+  radialWindow.once('ready-to-show', () => {
+    radialWindow.show();
+    radialWindow.focus();
+  });
+  radialWindow.on('blur', hideRadial);
+}
+
+function toggleWheel(wheelId) {
+  const alreadyShowingThis =
+    radialWindow && !radialWindow.isDestroyed() && radialWindow.isVisible() && activeWheelId === wheelId;
+
+  if (alreadyShowingThis) {
+    radialWindow.hide();
+    return;
+  }
+
+  activeWheelId = wheelId;
+
+  if (!radialWindow || radialWindow.isDestroyed()) {
+    createRadialWindow();
+  } else {
+    const pos = getCenteredPosition();
+    radialWindow.setPosition(pos.x, pos.y);
+    radialWindow.webContents.reload();
+    radialWindow.show();
+    radialWindow.focus();
+  }
+}
+
+// Devuelve la lista de atajos que no se han podido registrar, para que la
+// ventana de ajustes pueda avisar al usuario en vez de fallar en silencio.
+function registerShortcuts() {
+  globalShortcut.unregisterAll();
+  const failed = [];
+  loadConfig().wheels.forEach((wheel) => {
+    if (!wheel.shortcut) return;
+    let ok = false;
+    try {
+      ok = globalShortcut.register(wheel.shortcut, () => toggleWheel(wheel.id));
+    } catch {
+      ok = false; // acelerador con sintaxis que Electron no acepta
+    }
+    if (!ok) {
+      console.error(`[shortcuts] no se pudo registrar "${wheel.shortcut}" para la rueda "${wheel.name}"`);
+      failed.push({ wheel: wheel.name, shortcut: wheel.shortcut });
+    }
+  });
+  return failed;
+}
+
+function createSettingsWindow() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.focus();
+    return;
+  }
+  settingsWindow = new BrowserWindow({
+    width: 820,
+    height: 680,
+    icon: ICON_PATH,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+    },
+  });
+  settingsWindow.loadFile(path.join(__dirname, 'renderer', 'settings.html'));
+}
+
+const AUTOSTART_REG_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';
+const AUTOSTART_REG_VALUE = 'OpieLauncher';
+
+function getAutostart() {
+  if (app.isPackaged) {
+    return app.getLoginItemSettings().openAtLogin;
+  }
+  // En desarrollo escribimos la entrada del registro a mano (ver applyAutostart).
+  try {
+    execFileSync('reg', ['query', AUTOSTART_REG_KEY, '/v', AUTOSTART_REG_VALUE], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function applyAutostart(enabled) {
+  if (app.isPackaged) {
+    app.setLoginItemSettings({ openAtLogin: enabled });
+    return;
+  }
+
+  // En desarrollo ("electron ."), electron.exe no sabe que carpeta cargar por
+  // si solo: hay que pasarle la ruta del proyecto como argumento. Escribimos
+  // la entrada del registro nosotros mismos (en vez de usar
+  // app.setLoginItemSettings con path/args personalizados) porque esa API no
+  // pone comillas alrededor de rutas con espacios, lo que rompe el arranque
+  // en cualquier cuenta de Windows cuyo nombre de usuario tenga un espacio.
+  if (enabled) {
+    const command = `"${process.execPath}" "${app.getAppPath()}"`;
+    execFileSync('reg', ['add', AUTOSTART_REG_KEY, '/v', AUTOSTART_REG_VALUE, '/t', 'REG_SZ', '/d', command, '/f']);
+  } else {
+    try {
+      execFileSync('reg', ['delete', AUTOSTART_REG_KEY, '/v', AUTOSTART_REG_VALUE, '/f']);
+    } catch {
+      // no existia, nada que borrar
+    }
+  }
+}
+
+app.whenReady().then(() => {
+  registerShortcuts();
+
+  tray = new Tray(TRAY_ICON);
+  tray.setToolTip('Opie Launcher');
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: 'Configurar...', click: createSettingsWindow },
+      {
+        label: 'Iniciar con Windows',
+        type: 'checkbox',
+        checked: getAutostart(),
+        click: (menuItem) => applyAutostart(menuItem.checked),
+      },
+      { type: 'separator' },
+      { label: 'Salir', click: () => app.quit() },
+    ])
+  );
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+});
+
+app.on('window-all-closed', (e) => {
+  e.preventDefault(); // seguir vivo en la bandeja del sistema
+});
+
+ipcMain.handle('get-active-wheel', () => {
+  const config = loadConfig();
+  return config.wheels.find((w) => w.id === activeWheelId) || config.wheels[0] || null;
+});
+
+ipcMain.handle('get-wheels-config', () => loadConfig().wheels);
+
+ipcMain.handle('save-wheels-config', (_evt, wheels) => {
+  saveConfig({ wheels });
+  return { failed: registerShortcuts() };
+});
+
+// Windows no ofrece ninguna forma de listar los atajos globales que ya estan
+// cogidos: lo unico que se puede hacer es intentar registrar uno y ver si
+// entra. Eso es lo que hacemos aqui, y lo deshacemos acto seguido.
+// Soltamos antes los nuestros porque si no, un atajo que sigue en el config
+// guardado (aunque el usuario lo acabe de cambiar en la ventana de ajustes)
+// se reportaria como ocupado por culpa de nosotros mismos.
+ipcMain.handle('check-shortcut', (_evt, accelerator) => {
+  globalShortcut.unregisterAll();
+  let free = false;
+  try {
+    free = globalShortcut.register(accelerator, () => {});
+    if (free) globalShortcut.unregister(accelerator);
+  } catch {
+    free = false; // acelerador invalido
+  }
+  registerShortcuts();
+  return free;
+});
+
+ipcMain.handle('scan-apps', () => scanApps());
+
+ipcMain.handle('get-autostart', () => getAutostart());
+ipcMain.handle('set-autostart', (_evt, enabled) => {
+  applyAutostart(enabled);
+  return getAutostart();
+});
+
+const ICON_MIME_BY_EXT = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  ico: 'image/x-icon',
+  svg: 'image/svg+xml',
+  webp: 'image/webp',
+};
+
+ipcMain.handle('pick-icon-file', async () => {
+  const result = await dialog.showOpenDialog({
+    title: 'Elegir icono',
+    properties: ['openFile'],
+    filters: [{ name: 'Imagenes', extensions: Object.keys(ICON_MIME_BY_EXT) }],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+
+  const filePath = result.filePaths[0];
+  const ext = path.extname(filePath).slice(1).toLowerCase();
+  const mime = ICON_MIME_BY_EXT[ext] || 'application/octet-stream';
+  const buffer = fs.readFileSync(filePath);
+  return `data:${mime};base64,${buffer.toString('base64')}`;
+});
+
+ipcMain.handle('launch-app', async (_evt, execPath, toggleClose = true) => {
+  hideRadial();
+
+  const running = toggleClose ? findRunningProcesses(execPath) : [];
+  if (running.length > 0) {
+    // Apps sin ventana (bandeja, ej. NVDA): no pueden tener dialogos de
+    // "guardar cambios", asi que cerrarlas forzado es seguro.
+    const headless = running.filter((p) => !p.hasWindow).map((p) => p.pid);
+    // Apps con ventana: cierre normal (como pulsar la X), nunca forzado,
+    // para no perder cambios sin guardar.
+    const windowed = running.filter((p) => p.hasWindow).map((p) => p.pid);
+    closeProcesses(headless, true);
+    closeProcesses(windowed, false);
+    return;
+  }
+
+  const result = await shell.openPath(execPath);
+  if (result) console.error('Error al abrir', execPath, result);
+});
+
+ipcMain.handle('close-radial', hideRadial);
+
+ipcMain.handle('open-link', async (_evt, url) => {
+  hideRadial();
+  await shell.openExternal(url);
+});
+
+ipcMain.handle('open-settings', () => {
+  if (radialWindow && !radialWindow.isDestroyed()) {
+    radialWindow.destroy();
+  }
+  radialWindow = null;
+  createSettingsWindow();
+});

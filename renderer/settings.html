@@ -1,0 +1,518 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: 'Segoe UI', sans-serif;
+        margin: 0;
+        background: #1e1e26;
+        color: #eee;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      header {
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      header h1 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0;
+      }
+      header p {
+        font-size: 11px;
+        color: #999;
+        margin: 2px 0 0;
+      }
+      #status {
+        color: #9f9;
+        font-size: 12px;
+        max-width: 420px;
+        text-align: right;
+      }
+      #status.error {
+        color: #ff9d9d;
+      }
+      .items-count {
+        font-size: 10.5px;
+        color: #777;
+        align-self: center;
+      }
+      .items-count.full {
+        color: #ffcf7d;
+      }
+      .small-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .small-btn:disabled:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+      #picker-note {
+        font-size: 11px;
+        color: #ffcf7d;
+        padding: 0 10px 8px;
+      }
+      #picker-note:empty {
+        display: none;
+      }
+      #save {
+        padding: 8px 18px;
+        font-size: 13px;
+        cursor: pointer;
+        background: #3d7eff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+      }
+      #save:hover {
+        background: #5a90ff;
+      }
+      #layout {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      #sidebar {
+        width: 210px;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 12px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+      }
+      #sidebar h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: #999;
+        margin: 0 0 8px;
+      }
+      #wheel-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 10px;
+      }
+      .wheel-item {
+        padding: 8px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 1px solid transparent;
+      }
+      .wheel-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .wheel-item.selected {
+        background: rgba(61, 126, 255, 0.18);
+        border-color: rgba(61, 126, 255, 0.5);
+      }
+      .wheel-item-name {
+        font-size: 13px;
+      }
+      .wheel-item-shortcut {
+        font-size: 10px;
+        color: #999;
+        margin-top: 2px;
+      }
+      #add-wheel {
+        padding: 7px 10px;
+        font-size: 12px;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.06);
+        color: #eee;
+        border: 1px dashed rgba(255, 255, 255, 0.25);
+        border-radius: 6px;
+      }
+      #add-wheel:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      #main {
+        flex: 1;
+        padding: 16px 20px;
+        overflow-y: auto;
+      }
+      .editor-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .wheel-name-input {
+        font-size: 16px;
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        color: #eee;
+        padding: 4px 2px;
+        flex: 1;
+        max-width: 320px;
+      }
+      .wheel-name-input:focus {
+        outline: none;
+        border-bottom-color: #3d7eff;
+      }
+      button {
+        font-family: inherit;
+      }
+      .danger-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+        cursor: pointer;
+        background: rgba(255, 80, 80, 0.15);
+        color: #ff9d9d;
+        border: 1px solid rgba(255, 80, 80, 0.35);
+        border-radius: 6px;
+      }
+      .danger-btn:hover {
+        background: rgba(255, 80, 80, 0.28);
+      }
+      .shortcut-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.08);
+        color: #eee;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        font-family: 'Consolas', monospace;
+      }
+      .shortcut-btn.capturing {
+        background: rgba(61, 126, 255, 0.3);
+        border-color: #3d7eff;
+      }
+      .shortcut-btn:hover {
+        background: rgba(255, 255, 255, 0.14);
+      }
+      .small-btn {
+        padding: 5px 9px;
+        font-size: 11px;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.06);
+        color: #ccc;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+      }
+      .small-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+      #tree-root {
+        margin-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding-top: 12px;
+      }
+      .tree-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 6px;
+        border-radius: 5px;
+      }
+      .tree-row:hover {
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .tree-icon {
+        width: 20px;
+        height: 20px;
+      }
+      .tree-folder-icon {
+        width: 20px;
+        text-align: center;
+        font-size: 15px;
+      }
+      .tree-name {
+        font-size: 12.5px;
+        flex: 1;
+      }
+      .tree-toggle {
+        font-size: 10.5px;
+        color: #aaa;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .tree-del {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 12px;
+        opacity: 0.6;
+        padding: 2px 4px;
+      }
+      .tree-del:hover {
+        opacity: 1;
+      }
+      .tree-actions {
+        display: flex;
+        gap: 8px;
+        margin: 6px 0 10px;
+      }
+      #empty-hint {
+        color: #888;
+        font-size: 13px;
+      }
+
+      #picker-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      /* El selector de ID de arriba (display:flex) gana por especificidad al
+         [hidden] del navegador (display:none), asi que sin esto la ventana
+         emergente se queda visible siempre, aunque tenga el atributo hidden. */
+      #picker-overlay[hidden] {
+        display: none;
+      }
+
+      #prompt-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+      }
+      #prompt-overlay[hidden] {
+        display: none;
+      }
+      #prompt-box {
+        width: 320px;
+        background: #23232d;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 16px;
+      }
+      #prompt-title {
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+      #prompt-input {
+        width: 100%;
+        padding: 7px 10px;
+        font-size: 13px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        color: #eee;
+        margin-bottom: 12px;
+      }
+      #prompt-input:focus {
+        outline: none;
+        border-color: #3d7eff;
+      }
+      #prompt-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      #iconpicker-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+      }
+      #iconpicker-overlay[hidden] {
+        display: none;
+      }
+      #iconpicker-box {
+        width: 300px;
+        background: #23232d;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      #iconpicker-title {
+        font-size: 13px;
+        margin-bottom: 2px;
+      }
+      #iconpicker-row {
+        display: flex;
+        gap: 6px;
+      }
+      #iconpicker-emoji-input {
+        flex: 1;
+        min-width: 0;
+        padding: 7px 10px;
+        font-size: 15px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        color: #eee;
+      }
+      #iconpicker-emoji-input:focus {
+        outline: none;
+        border-color: #3d7eff;
+      }
+      #iconpicker-box .small-btn {
+        width: 100%;
+        text-align: center;
+      }
+      #iconpicker-emoji-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 4px;
+        max-height: 150px;
+        overflow-y: auto;
+        padding: 2px;
+      }
+      #iconpicker-emoji-grid button {
+        font-size: 17px;
+        line-height: 1;
+        padding: 6px 0;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      #iconpicker-emoji-grid button:hover {
+        background: rgba(255, 255, 255, 0.18);
+        border-color: rgba(61, 126, 255, 0.5);
+      }
+      #picker {
+        width: 460px;
+        max-height: 70vh;
+        background: #23232d;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      #picker-header {
+        display: flex;
+        gap: 8px;
+        padding: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      #picker-search {
+        flex: 1;
+        padding: 7px 10px;
+        font-size: 13px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        color: #eee;
+      }
+      #picker-search:focus {
+        outline: none;
+        border-color: #3d7eff;
+      }
+      #picker-list {
+        overflow-y: auto;
+        padding: 8px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 8px;
+      }
+      .picker-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        border: 1px solid transparent;
+        text-align: center;
+      }
+      .picker-item:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .picker-item.added {
+        background: rgba(80, 200, 120, 0.15);
+        border-color: rgba(80, 200, 120, 0.4);
+      }
+      .picker-item img {
+        width: 30px;
+        height: 30px;
+        margin-bottom: 5px;
+      }
+      .picker-item span {
+        font-size: 10.5px;
+        word-break: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Opie Launcher</h1>
+        <p>Configura tus ruedas: qué contiene cada una y con qué atajo se abre.</p>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:#ccc; cursor:pointer;">
+          <input type="checkbox" id="autostart-checkbox" />
+          Iniciar con Windows
+        </label>
+        <span id="status"></span>
+        <button id="save">Guardar todo</button>
+      </div>
+    </header>
+
+    <div id="layout">
+      <aside id="sidebar">
+        <h2>Ruedas</h2>
+        <div id="wheel-list"></div>
+        <button id="add-wheel">+ Nueva rueda</button>
+      </aside>
+      <main id="main"></main>
+    </div>
+
+    <div id="picker-overlay" hidden>
+      <div id="picker">
+        <div id="picker-header">
+          <input id="picker-search" placeholder="Buscar programa..." />
+          <button id="picker-close" class="small-btn">Cerrar</button>
+        </div>
+        <div id="picker-list"></div>
+        <div id="picker-note"></div>
+      </div>
+    </div>
+
+    <div id="prompt-overlay" hidden>
+      <div id="prompt-box">
+        <div id="prompt-title"></div>
+        <input id="prompt-input" />
+        <div id="prompt-actions">
+          <button id="prompt-cancel" class="small-btn">Cancelar</button>
+          <button id="prompt-ok" class="small-btn">Aceptar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="iconpicker-overlay" hidden>
+      <div id="iconpicker-box">
+        <div id="iconpicker-title">Cambiar icono</div>
+        <div id="iconpicker-emoji-grid"></div>
+        <div id="iconpicker-row">
+          <input id="iconpicker-emoji-input" placeholder="...o pega/escribe otro emoji" maxlength="8" />
+          <button id="iconpicker-emoji-ok" class="small-btn">Usar</button>
+        </div>
+        <button id="iconpicker-image-btn" class="small-btn">🖼 Elegir imagen...</button>
+        <button id="iconpicker-reset-btn" class="small-btn">Usar por defecto</button>
+        <button id="iconpicker-cancel" class="small-btn">Cancelar</button>
+      </div>
+    </div>
+
+    <script src="settings.js"></script>
+  </body>
+</html>
