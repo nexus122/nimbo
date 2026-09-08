@@ -24,10 +24,9 @@
       "output": "dist"
     },
     "files": [
-      "main.js",
-      "preload.js",
-      "appScanner.js",
-      "processUtils.js",
+      "*.js",
+      "!test_*.js",
+      "!check-not-running.js",
       "renderer/**/*",
       "assets/**/*",
       "package.json"
