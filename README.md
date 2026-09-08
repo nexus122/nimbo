@@ -38,11 +38,34 @@ Al arrancar no verás ninguna ventana: busca el icono en la bandeja del sistema
 (junto al reloj). Ahí tienes **Configurar...**, **Iniciar con Windows** y
 **Salir**.
 
-Para generar un instalador `.exe`:
+## Compilar
 
 ```bash
-npm run dist     # deja el resultado en dist/
+npm run pack     # aplicacion suelta en dist/win-unpacked/ (recomendado)
+npm run dist     # ademas, instalador NSIS en dist/
 ```
+
+`npm run pack` deja **`dist/win-unpacked/Opie Launcher.exe`**, que ya es una
+aplicacion completa y portable: se puede ejecutar o anclar tal cual, sin
+instalar nada.
+
+`npm run dist` genera ademas el instalador, pero **hoy falla en una maquina
+normal**: `electron-builder` descarga sus herramientas de firma en un `.7z` que
+contiene enlaces simbolicos de macOS, y Windows no deja crearlos sin el
+privilegio correspondiente:
+
+```
+ERROR: Cannot create symbolic link ... winCodeSign\...\libcrypto.dylib
+```
+
+Para que funcione hay que darle ese privilegio, de una de estas dos formas:
+
+- Activar el **Modo de desarrollador** (Configuracion → Sistema → Para
+  desarrolladores), que concede el permiso de forma permanente, o
+- lanzar `npm run dist` desde una terminal **como administrador**.
+
+Con cualquiera de las dos, la descarga queda en cache y las siguientes builds
+ya no la repiten. Si no, `npm run pack` cubre el caso normal.
 
 ## Uso
 
@@ -118,6 +141,10 @@ conviene saberlas antes de "simplificarlas":
   espacio.
 - **`window.prompt()` no existe en Electron** (`confirm()` sí), de ahí el
   diálogo propio.
+- **`electronDist` apunta al Electron de `node_modules`.** Por defecto
+  `electron-builder` se descarga su propia copia del mismo binario que `npm
+  install` ya bajo; apuntarlo al local ahorra la descarga y evita que la build
+  dependa de que las releases de GitHub respondan.
 - **No hay forma de listar los atajos globales ocupados en Windows.** Lo único
   posible es intentar registrar uno y ver si entra; eso hace `check-shortcut`.
 

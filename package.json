@@ -2,10 +2,13 @@
   "name": "opie-launcher",
   "productName": "Opie Launcher",
   "version": "0.1.0",
+  "description": "Menu radial para Windows: un atajo, una rueda, tus programas.",
+  "author": "Juan Romero",
   "private": true,
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "test": "node test_radial.js"
   },
@@ -15,6 +18,7 @@
   },
   "build": {
     "appId": "com.juanromero.opielauncher",
+    "electronDist": "node_modules/electron/dist",
     "productName": "Opie Launcher",
     "directories": {
       "output": "dist"
