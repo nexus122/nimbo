@@ -15,6 +15,10 @@ const CONFIRM_MS = 110;
 
 async function init() {
   document.documentElement.dataset.theme = await window.opie.getTheme();
+  // Escalamos el diseno completo en vez de recalcular la geometria: asi el
+  // anillo, los iconos, las etiquetas y el sector de luz no pueden quedar a
+  // escalas distintas entre si.
+  document.documentElement.style.setProperty('--wheel-scale', (await window.opie.getWheelSize()) / 480);
   const wheel = await window.opie.getActiveWheel();
   if (!wheel) {
     renderEmpty();

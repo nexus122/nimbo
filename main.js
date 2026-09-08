@@ -11,7 +11,12 @@ const configFile = require('./config');
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 
 const CONFIG_PATH = path.join(app.getPath('userData'), 'config.json');
-const WHEEL_SIZE = 480;
+// Tamano al que esta dibujado el CSS de la rueda. No se toca: para agrandarla
+// se escala el diseno entero (ver --wheel-scale en radial.js), en vez de
+// recalcular radios, iconos y etiquetas por separado, que es donde se
+// desincronizan las cosas.
+const DESIGN_SIZE = 480;
+const WHEEL_SIZES = [380, 480, 620, 780];
 const ICON_PATH = path.join(__dirname, 'assets', 'icon.png');
 const TRAY_ICON = nativeImage.createFromPath(ICON_PATH).resize({ width: 16, height: 16 });
 
@@ -38,21 +43,31 @@ function hideRadial() {
   if (radialWindow && !radialWindow.isDestroyed()) radialWindow.hide();
 }
 
-function getCenteredPosition() {
+function wheelSize() {
+  const saved = loadConfig().wheelSize;
+  return WHEEL_SIZES.includes(saved) ? saved : DESIGN_SIZE;
+}
+
+// Devuelve tamano y posicion a la vez porque uno depende del otro: la rueda no
+// puede ser mas grande que la pantalla donde va a salir, asi que si no cabe se
+// recorta antes de centrarla.
+function getPlacement() {
   const cursor = screen.getCursorScreenPoint();
   const display = screen.getDisplayNearestPoint(cursor);
   const { x, y, width, height } = display.workArea;
+  const size = Math.min(wheelSize(), width, height);
   return {
-    x: Math.round(x + width / 2 - WHEEL_SIZE / 2),
-    y: Math.round(y + height / 2 - WHEEL_SIZE / 2),
+    size,
+    x: Math.round(x + width / 2 - size / 2),
+    y: Math.round(y + height / 2 - size / 2),
   };
 }
 
 function createRadialWindow() {
-  const pos = getCenteredPosition();
+  const pos = getPlacement();
   radialWindow = new BrowserWindow({
-    width: WHEEL_SIZE,
-    height: WHEEL_SIZE,
+    width: pos.size,
+    height: pos.size,
     x: pos.x,
     y: pos.y,
     icon: ICON_PATH,
@@ -91,8 +106,10 @@ function toggleWheel(wheelId) {
   if (!radialWindow || radialWindow.isDestroyed()) {
     createRadialWindow();
   } else {
-    const pos = getCenteredPosition();
-    radialWindow.setPosition(pos.x, pos.y);
+    // El tamano puede haber cambiado en ajustes desde la ultima vez, y la
+    // ventana ya existente conserva el de entonces.
+    const pos = getPlacement();
+    radialWindow.setBounds({ x: pos.x, y: pos.y, width: pos.size, height: pos.size });
     radialWindow.webContents.reload();
     radialWindow.show();
     radialWindow.focus();
@@ -220,6 +237,13 @@ ipcMain.handle('save-wheels-config', (_evt, wheels) => {
 });
 
 ipcMain.handle('get-theme', () => loadConfig().theme || 'auto');
+
+ipcMain.handle('get-wheel-size', () => wheelSize());
+
+ipcMain.handle('set-wheel-size', (_evt, size) => {
+  saveConfig({ ...loadConfig(), wheelSize: size });
+  return wheelSize();
+});
 
 ipcMain.handle('set-theme', (_evt, theme) => {
   saveConfig({ ...loadConfig(), theme });

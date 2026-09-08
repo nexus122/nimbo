@@ -229,6 +229,35 @@
         font-size: 10.5px;
       }
 
+      #size-picker {
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+      #size-list {
+        display: flex;
+        gap: 4px;
+      }
+      .size-item {
+        flex: 1;
+        padding: 6px 0;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        background: none;
+        color: var(--text-dim);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .size-item:hover {
+        background: var(--fill-1);
+        color: var(--text);
+      }
+      .size-item.selected {
+        background: var(--accent-soft);
+        border-color: var(--accent-line);
+        color: var(--text);
+      }
+
       #main {
         flex: 1;
         padding: 16px 20px;
@@ -598,6 +627,11 @@
         <div id="theme-picker">
           <h2>Tema</h2>
           <div id="theme-list"></div>
+        </div>
+
+        <div id="size-picker">
+          <h2>Tamaño de la rueda</h2>
+          <div id="size-list"></div>
         </div>
       </aside>
       <main id="main"></main>

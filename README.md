@@ -22,6 +22,11 @@ llamas.
 - **Cuatro formas de añadir un programa:** arrastrarlo a la ventana, elegirlo
   con el explorador, pegar su ruta, o buscar entre los instalados.
 - **Temas:** Grafito, Papel, Malva, o el que use Windows en cada momento.
+- **Cuatro tamaños de rueda**, de S a XL, para que no se quede pequeña en 4K.
+- **Reordenar y renombrar** cualquier elemento: la posición en el círculo es
+  también la tecla 1-9 que lo abre, así que el orden importa.
+- **Respeta los argumentos** del acceso directo (un navegador con un perfil
+  concreto, un juego con su launcher).
 - **Iconos personalizables** en carpetas y enlaces: emoji o imagen propia.
 - **Arranque con Windows** opcional, desde el menú de la bandeja.
 
@@ -129,8 +134,11 @@ Lo que sueltes cae en el nivel que estés editando si el panel está abierto, o
 en la raíz de la rueda seleccionada si no.
 - **"Cerrar si abierto":** por elemento, decide si volver a lanzarlo cierra el
   programa en vez de abrir otra instancia.
-- **Tema** (abajo a la izquierda): se aplica y se guarda al instante, no
-  espera al botón de Guardar.
+- **Tema** y **tamaño de la rueda** (abajo a la izquierda): se aplican y se
+  guardan al instante, no esperan al botón de Guardar. El tamaño se ve la
+  próxima vez que abras la rueda.
+- **▲▼ para reordenar** y **✏️ para renombrar**, en cada fila. El número de la
+  izquierda es la tecla que abre ese elemento en la rueda.
 - El resto de cambios **no se guardan solos**: pulsa **Guardar todo**.
 
 La configuración vive en:
@@ -198,14 +206,25 @@ conviene saberlas antes de "simplificarlas":
   dependa de que las releases de GitHub respondan.
 - **No hay forma de listar los atajos globales ocupados en Windows.** Lo único
   posible es intentar registrar uno y ver si entra; eso hace `check-shortcut`.
+- **El config se escribe a un temporal y se renombra encima.** `rename` es
+  atómico en el mismo volumen: un corte a media escritura deja el config
+  anterior intacto en vez de un JSON truncado. Y si el fichero existe pero no
+  se puede leer, se aparta a `config.corrupto-<marca>.json` en vez de
+  machacarse — un error transitorio (un antivirus mirándolo) no debe costarte
+  todas tus ruedas.
+- **La rueda se agranda escalando el diseño de 480 px entero**, no recalculando
+  radios y tamaños de fuente. Una sola fuente de verdad: nada puede quedar a
+  una escala distinta del resto.
 
 ## Limitaciones conocidas
 
 - La rueda sale centrada en el monitor, no bajo el cursor. Es deliberado: evita
   los casos raros al invocarla cerca de un borde.
-- `processUtils.findRunningProcesses` lanza PowerShell de forma **síncrona**
-  desde el proceso principal, lo que congela la interfaz un par de décimas en
-  cada lanzamiento. Además `Get-Process` no ve procesos elevados, así que el
-  "cerrar si abierto" no funciona con programas que corren como administrador.
+- **`Get-Process` no ve la ruta de los procesos elevados**, así que "cerrar si
+  abierto" no funciona con programas que corren como administrador. Está
+  comprobado que `Get-CimInstance Win32_Process` tampoco los ve desde una
+  sesión sin elevar (mismos procesos ilegibles por ambas vías), así que no hay
+  arreglo sin elevar Opie entero. Al menos ya no falla en silencio: avisa por
+  consola con los PID afectados.
 - Sólo Windows. El escaneo de programas, el autoarranque y el cierre de
   procesos dependen del registro, `taskkill` y el menú Inicio.

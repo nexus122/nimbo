@@ -192,7 +192,32 @@ function renderThemes(current) {
   });
 }
 
+// Los mismos valores que acepta main.js. Se guarda al momento, como el tema.
+const WHEEL_SIZES = [
+  { px: 380, name: 'S' },
+  { px: 480, name: 'M' },
+  { px: 620, name: 'L' },
+  { px: 780, name: 'XL' },
+];
+
+function renderSizes(current) {
+  const list = document.getElementById('size-list');
+  list.innerHTML = '';
+  WHEEL_SIZES.forEach((size) => {
+    const btn = document.createElement('button');
+    btn.className = 'size-item' + (size.px === current ? ' selected' : '');
+    btn.textContent = size.name;
+    btn.title = `${size.px} píxeles`;
+    btn.addEventListener('click', async () => {
+      renderSizes(await window.opie.setWheelSize(size.px));
+      setStatus(`Rueda a ${size.px} px. Se ve al abrirla.`);
+    });
+    list.appendChild(btn);
+  });
+}
+
 async function init() {
+  renderSizes(await window.opie.getWheelSize());
   const theme = await window.opie.getTheme();
   document.documentElement.dataset.theme = theme;
   renderThemes(theme);

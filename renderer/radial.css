@@ -17,6 +17,13 @@ body {
   color: var(--text);
 }
 
+/* La escala va en el body y no en #wheel porque #wheel tiene su propia
+   animacion de apertura, y un transform en el keyframe pisaria este. */
+body {
+  transform: scale(var(--wheel-scale, 1));
+  transform-origin: top left;
+}
+
 #wheel {
   position: relative;
   width: 480px;
