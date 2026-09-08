@@ -643,6 +643,7 @@ function renderPickerList(filter) {
           name: a.name,
           execPath: a.execPath,
           icon: a.icon,
+          args: a.args || '',
           toggleClose: true,
         });
       }
