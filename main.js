@@ -1,10 +1,10 @@
 const { app, BrowserWindow, globalShortcut, screen, ipcMain, shell, Tray, Menu, nativeImage, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { scanApps, appFromPath } = require('./appScanner');
 const { findRunningProcesses, closeProcesses } = require('./processUtils');
+const configFile = require('./config');
 
 // Evita un crash nativo conocido de Electron en Windows 10/11: la feature
 // "Native Window Occlusion" choca con ventanas transparentes + always-on-top.
@@ -20,45 +20,14 @@ let settingsWindow = null;
 let tray = null;
 let activeWheelId = null;
 
-function id() {
-  return crypto.randomUUID();
-}
-
+// La logica de lectura/escritura vive en config.js (recibe la ruta como
+// parametro) para poder probarla con node a secas, fuera de Electron.
 function loadConfig() {
-  let raw = null;
-  try {
-    raw = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
-  } catch {
-    raw = null;
-  }
-
-  if (!raw || !Array.isArray(raw.wheels)) {
-    // Migracion desde el formato viejo (una lista plana "pinned") o primera vez.
-    const legacyPinned = raw && Array.isArray(raw.pinned) ? raw.pinned : [];
-    raw = {
-      wheels: [
-        {
-          id: id(),
-          name: 'Principal',
-          shortcut: 'Control+Shift+Space',
-          items: legacyPinned.map((p) => ({
-            id: id(),
-            type: 'app',
-            name: p.name,
-            execPath: p.execPath,
-            icon: p.icon,
-            toggleClose: p.toggleClose !== false,
-          })),
-        },
-      ],
-    };
-    saveConfig(raw);
-  }
-  return raw;
+  return configFile.loadConfig(CONFIG_PATH);
 }
 
 function saveConfig(config) {
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+  configFile.saveConfig(CONFIG_PATH, config);
 }
 
 // Ocultar la rueda pasa por aqui SIEMPRE. Cualquier cosa que la cierre
