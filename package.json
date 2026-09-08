@@ -8,8 +8,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
+    "pack": "node check-not-running.js && electron-builder --dir",
+    "dist": "node check-not-running.js && electron-builder",
     "test": "node test_radial.js && node test_appscanner.js"
   },
   "devDependencies": {

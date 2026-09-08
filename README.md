@@ -48,8 +48,17 @@ npm run dist     # ademas, instalador NSIS en dist/
 ```
 
 `npm run pack` deja **`dist/win-unpacked/Opie Launcher.exe`**, que ya es una
-aplicacion completa y portable: se puede ejecutar o anclar tal cual, sin
+aplicación completa y portable: se puede ejecutar o anclar tal cual, sin
 instalar nada.
+
+> **Cierra la aplicación antes de compilar.** `electron-builder` reescribe
+> `dist/win-unpacked/` entero, y si el `.exe` está en uso Windows le impide
+> sustituir los ficheros: la build muere a medias y deja el paquete
+> inservible — le faltan los `.pak` de Chromium, que es donde vive hasta la
+> hoja de estilos por defecto, así que la aplicación arranca mostrando HTML
+> crudo. Los dos scripts lo comprueban antes de empezar
+> (`check-not-running.js`) y se niegan a arrancar si te lo dejas abierto. Si
+> ya te ha pasado: borra `dist/win-unpacked/` y vuelve a compilar.
 
 `npm run dist` genera ademas el instalador, pero **hoy falla en una maquina
 normal**: `electron-builder` descarga sus herramientas de firma en un `.7z` que
