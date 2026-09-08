@@ -73,16 +73,17 @@ $out | ConvertTo-Json -Compress -Depth 5
   return list;
 }
 
-// Resuelve un unico .lnk. Usamos PowerShell por el mismo motivo que el
-// escaneo masivo de arriba: shell.readShortcutLink() de Electron tumba el
-// proceso entero ante accesos directos mal formados, y aqui el fichero lo
-// elige el usuario, asi que puede ser cualquier cosa.
+// Resuelve un unico .lnk (destino Y argumentos). Usamos PowerShell por el
+// mismo motivo que el escaneo masivo de arriba: shell.readShortcutLink() de
+// Electron tumba el proceso entero ante accesos directos mal formados, y
+// aqui el fichero lo elige el usuario, asi que puede ser cualquier cosa.
 async function resolveShortcutTarget(lnkPath) {
   const literal = `'${lnkPath.replace(/'/g, "''")}'`;
   const script = `
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $sh = New-Object -ComObject WScript.Shell
-$sh.CreateShortcut(${literal}).TargetPath
+$sc = $sh.CreateShortcut(${literal})
+[PSCustomObject]@{ target = $sc.TargetPath; args = $sc.Arguments } | ConvertTo-Json -Compress
 `;
   const encoded = Buffer.from(script, 'utf16le').toString('base64');
   try {
@@ -91,7 +92,11 @@ $sh.CreateShortcut(${literal}).TargetPath
       ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded],
       { encoding: 'utf8' }
     );
-    return stdout.replace(/^﻿/, '').trim() || null;
+    const cleaned = stdout.replace(/^﻿/, '').trim();
+    if (!cleaned) return null;
+    const parsed = JSON.parse(cleaned);
+    const target = (parsed.target || '').trim();
+    return target ? { target, args: parsed.args || '' } : null;
   } catch (err) {
     console.error('[appScanner] no se pudo resolver el acceso directo:', err.message);
     return null;
@@ -110,12 +115,14 @@ async function appFromPath(rawPath) {
   // acceso directo llamado "Google Chrome" apunta a "chrome.exe", y el nombre
   // bueno es el primero.
   const name = path.basename(target, path.extname(target));
+  let args = '';
 
   if (target.toLowerCase().endsWith('.lnk')) {
     if (!fs.existsSync(target)) return { error: `No existe: ${target}` };
     const resolved = await resolveShortcutTarget(target);
     if (!resolved) return { error: 'No se ha podido leer ese acceso directo.' };
-    target = resolved;
+    target = resolved.target;
+    args = resolved.args;
   }
 
   if (!target.toLowerCase().endsWith('.exe')) {
@@ -129,7 +136,7 @@ async function appFromPath(rawPath) {
   } catch (err) {
     console.log('[appScanner] getFileIcon fallo para', target, ':', err.message);
   }
-  return { app: { name, execPath: target, icon } };
+  return { app: { name, execPath: target, icon, args } };
 }
 
 async function scanApps() {

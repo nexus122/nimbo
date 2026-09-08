@@ -1,9 +1,9 @@
 const { app, BrowserWindow, globalShortcut, screen, ipcMain, shell, Tray, Menu, nativeImage, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { execFileSync } = require('child_process');
+const { execFileSync, spawn } = require('child_process');
 const { scanApps, appFromPath } = require('./appScanner');
-const { findRunningProcesses, closeProcesses } = require('./processUtils');
+const { findRunningProcesses, closeProcesses, parseWindowsArgs } = require('./processUtils');
 const configFile = require('./config');
 
 // Evita un crash nativo conocido de Electron en Windows 10/11: la feature
@@ -297,10 +297,23 @@ ipcMain.handle('pick-icon-file', async () => {
   return `data:${mime};base64,${buffer.toString('base64')}`;
 });
 
+// Busca los argumentos guardados para execPath en la config actual. El IPC
+// de lanzar solo recibe la ruta (ver preload.js/radial.js, fuera de lo que
+// toca este cambio), asi que en vez de tocar esos ficheros miramos la config
+// que ya tenemos cargada aqui mismo.
+function findArgsForExecPath(execPath) {
+  const wheels = loadConfig().wheels || [];
+  for (const wheel of wheels) {
+    const found = (wheel.items || []).find((it) => it.type === 'app' && it.execPath === execPath && it.args);
+    if (found) return found.args;
+  }
+  return '';
+}
+
 ipcMain.handle('launch-app', async (_evt, execPath, toggleClose = true) => {
   hideRadial();
 
-  const running = toggleClose ? findRunningProcesses(execPath) : [];
+  const running = toggleClose ? await findRunningProcesses(execPath) : [];
   if (running.length > 0) {
     // Apps sin ventana (bandeja, ej. NVDA): no pueden tener dialogos de
     // "guardar cambios", asi que cerrarlas forzado es seguro.
@@ -310,6 +323,23 @@ ipcMain.handle('launch-app', async (_evt, execPath, toggleClose = true) => {
     const windowed = running.filter((p) => p.hasWindow).map((p) => p.pid);
     closeProcesses(headless, true);
     closeProcesses(windowed, false);
+    return;
+  }
+
+  const args = findArgsForExecPath(execPath);
+  if (args) {
+    // shell.openPath no sabe pasar argumentos, asi que con argumentos usamos
+    // spawn desligado (detached + stdio ignore + unref) para que el programa
+    // sobreviva aunque Opie se cierre. Sin argumentos NO tocamos esto: dejamos
+    // shell.openPath, que es el camino comun y maneja mejor los casos raros
+    // (UAC, tipos de fichero asociados, etc).
+    try {
+      const child = spawn(execPath, parseWindowsArgs(args), { detached: true, stdio: 'ignore' });
+      child.on('error', (err) => console.error('Error al abrir', execPath, err.message));
+      child.unref();
+    } catch (err) {
+      console.error('Error al abrir', execPath, err.message);
+    }
     return;
   }
 

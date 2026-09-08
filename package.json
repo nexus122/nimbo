@@ -10,7 +10,7 @@
     "start": "electron .",
     "pack": "node check-not-running.js && electron-builder --dir",
     "dist": "node check-not-running.js && electron-builder",
-    "test": "node test_radial.js && node test_appscanner.js && node test_config.js"
+    "test": "node test_radial.js && node test_appscanner.js && node test_config.js && node test_processutils.js"
   },
   "devDependencies": {
     "electron": "^32.0.0",
