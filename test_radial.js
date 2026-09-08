@@ -1,6 +1,6 @@
 // Check minimo de la navegacion por teclado de la rueda: `node test_radial.js`
 const assert = require('assert');
-const { nextIndex, shortestAngle } = require('./renderer/radial.js');
+const { nextIndex, shortestAngle, sectorStart } = require('./renderer/radial.js');
 
 // sin items no hay nada que seleccionar
 assert.strictEqual(nextIndex(-1, 1, 0), -1);
@@ -44,5 +44,17 @@ for (const t of [45, 90, 135, 180, 225, 270, 315, 0, 45]) {
   a = next;
 }
 assert.ok(a > 360, 'tras dar la vuelta entera el angulo acumulado debe pasar de 360');
+
+// --- el sector cae debajo de su item ---
+// conic-gradient mide 0 grados a las 12 y hacia la derecha, igual que la
+// colocacion de los items. El centro del sector del item i tiene que caer
+// justo en (i/n)*360; si no, la luz aparece girada respecto al raton.
+const centro = (i, n) => sectorStart(i, n) + 180 / n;
+assert.strictEqual(centro(0, 8), 0);    // arriba
+assert.strictEqual(centro(2, 8), 90);   // derecha
+assert.strictEqual(centro(4, 8), 180);  // abajo
+assert.strictEqual(centro(6, 8), 270);  // izquierda
+assert.strictEqual(centro(1, 4), 90);
+assert.strictEqual(centro(0, 1), 0);    // item unico: sector centrado arriba
 
 console.log('ok: navegacion de la rueda');

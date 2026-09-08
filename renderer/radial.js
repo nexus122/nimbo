@@ -6,7 +6,12 @@ let sweepEl = null; // el sector de luz que sigue a la seleccion
 // Angulo acumulado, no normalizado a 0-360: asi el sector siempre gira por el
 // camino corto. Con el angulo crudo, saltar del ultimo item al primero daria
 // una vuelta entera hacia atras.
-let sweepAngle = -90;
+let sweepAngle = 0;
+
+// Cuanto esperamos, al pulsar un numero, antes de abrir. Lo justo para que el
+// sector llegue a su sitio: si lanzamos en el mismo fotograma la ventana se
+// oculta antes de pintar y no hay ninguna confirmacion de que has acertado.
+const CONFIRM_MS = 110;
 
 async function init() {
   document.documentElement.dataset.theme = await window.opie.getTheme();
@@ -63,6 +68,14 @@ function shortestAngle(current, target) {
   return current + ((((target - current) % 360) + 540) % 360) - 180;
 }
 
+// Angulo donde empieza el sector del item `index`, medido como lo mide
+// conic-gradient: 0 grados a las 12 y creciendo en sentido horario. Los items
+// se colocan con el mismo criterio (el 0 arriba), asi que basta con retroceder
+// medio sector para quedar centrado debajo del item.
+function sectorStart(index, total) {
+  return (index / total) * 360 - 180 / total;
+}
+
 function select(index) {
   slices.forEach((el, i) => el.classList.toggle('selected', i === index));
   selected = index;
@@ -75,8 +88,7 @@ function select(index) {
   // El item i esta centrado en (i/n)*360 - 90; el sector se abre medio ancho
   // antes para quedar centrado debajo.
   const size = 360 / n;
-  const target = (index / n) * 360 - 90 - size / 2;
-  sweepAngle = shortestAngle(sweepAngle, target);
+  sweepAngle = shortestAngle(sweepAngle, sectorStart(index, n));
   sweepEl.style.setProperty('--sweep-from', `${sweepAngle}deg`);
   sweepEl.style.setProperty('--sweep-size', `${size}deg`);
   sweepEl.style.opacity = '1';
@@ -206,7 +218,7 @@ function onKeydown(e) {
     if (i < items.length) {
       e.preventDefault();
       select(i);
-      activate(items[i]);
+      setTimeout(() => activate(items[i]), CONFIRM_MS);
     }
     return;
   }
@@ -242,7 +254,7 @@ function onKeydown(e) {
 // En el navegador arrancamos; requerido desde node (test_radial.js) solo
 // exponemos las funciones puras, sin tocar el DOM que alli no existe.
 if (typeof document === 'undefined') {
-  module.exports = { nextIndex, shortestAngle };
+  module.exports = { nextIndex, shortestAngle, sectorStart };
 } else {
   document.addEventListener('keydown', onKeydown);
   init();
