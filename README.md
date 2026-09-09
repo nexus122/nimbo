@@ -11,6 +11,10 @@ llamas.
 
 ![estado](https://img.shields.io/badge/estado-v0.1.0%20%C2%B7%20en%20desarrollo-orange)
 
+<p align="center">
+  <img src="assets/demo.gif" width="440" alt="La rueda con la seleccion recorriendo el anillo">
+</p>
+
 ---
 
 ## Qué hace

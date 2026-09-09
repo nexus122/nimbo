@@ -18,6 +18,7 @@
       const theme = new URLSearchParams(location.search).get('theme') || 'grafito';
       window.nimbo = {
         getTheme: async () => theme,
+        getWheelSize: async () => 480,
         getActiveWheel: async () => ({ name: 'Principal', items: [
           { type: 'app', name: 'Firefox', icon: ICON('#ff8a3d') },
           { type: 'app', name: 'VS Code', icon: ICON('#3d8aff') },
