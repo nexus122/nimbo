@@ -261,3 +261,9 @@ conviene saberlas antes de "simplificarlas":
   consola con los PID afectados.
 - Sólo Windows. El escaneo de programas, el autoarranque y el cierre de
   procesos dependen del registro, `taskkill` y el menú Inicio.
+
+## Licencia
+
+[MIT](LICENSE). Haz lo que quieras con esto: usarlo, modificarlo, distribuirlo
+o venderlo, siempre que mantengas el aviso de copyright. Sin garantia de
+ningun tipo.

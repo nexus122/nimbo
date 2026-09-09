@@ -5,6 +5,7 @@
   "description": "Menu radial para Windows: un atajo, una rueda, tus programas.",
   "author": "Juan Romero",
   "private": true,
+  "license": "MIT",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
