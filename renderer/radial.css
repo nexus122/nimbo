@@ -105,7 +105,9 @@ body {
 .slice.selected {
   background: var(--slot-hi);
   transform: scale(1.14);
-  box-shadow: 0 0 0 1px var(--accent-line);
+  /* El halo exterior es lo que ata el hueco al sector de luz: sin el, el aro
+     brilla y el icono seleccionado parecia de otra pieza. */
+  box-shadow: 0 0 0 1px var(--accent-line), 0 0 16px var(--glow);
 }
 
 .slice img {
@@ -156,6 +158,13 @@ body {
 
 .slice.selected .key {
   color: var(--accent);
+}
+
+/* La etiqueta seleccionada se enciende con sombra, NO con font-weight: cambiar
+   el grosor refluye el texto y la etiqueta salta de ancho en cada paso del
+   anillo, que se navega con las flechas. */
+.slice.selected .label {
+  text-shadow: 0 0 10px var(--glow);
 }
 
 #center {

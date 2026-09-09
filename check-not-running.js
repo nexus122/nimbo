@@ -5,7 +5,7 @@
 // que la app arranca mostrando HTML crudo). Mejor no empezar siquiera.
 const { execFileSync } = require('child_process');
 
-const NAME = 'Opie Launcher.exe';
+const NAME = 'Nimbo.exe';
 
 let out = '';
 try {

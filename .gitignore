@@ -1,2 +1,8 @@
 node_modules/
 dist/
+
+# La config real vive en %APPDATA%\Nimbo\ y nunca pasa por aqui. Esto es solo
+# por si alguien copia la suya al proyecto para depurar: lleva las rutas de
+# todos sus programas y los iconos en base64.
+config.json
+config.corrupto-*.json

@@ -1,4 +1,8 @@
-# Opie Launcher
+<p align="center">
+  <img src="assets/icon.png" width="96" alt="Nimbo">
+</p>
+
+<h1 align="center">Nimbo</h1>
 
 Un menú radial para Windows: pulsas un atajo de teclado, aparece una rueda con
 tus programas alrededor del cursor, eliges uno y desaparece. Sin ventana
@@ -36,7 +40,7 @@ Requiere [Node.js](https://nodejs.org/) 18 o superior.
 
 ```bash
 git clone <este-repo>
-cd opie-launcher
+cd nimbo
 npm install
 npm start
 ```
@@ -52,7 +56,7 @@ npm run pack     # aplicacion suelta en dist/win-unpacked/ (recomendado)
 npm run dist     # ademas, instalador NSIS en dist/
 ```
 
-`npm run pack` deja **`dist/win-unpacked/Opie Launcher.exe`**, que ya es una
+`npm run pack` deja **`dist/win-unpacked/Nimbo.exe`**, que ya es una
 aplicación completa y portable: se puede ejecutar o anclar tal cual, sin
 instalar nada.
 
@@ -65,23 +69,42 @@ instalar nada.
 > (`check-not-running.js`) y se niegan a arrancar si te lo dejas abierto. Si
 > ya te ha pasado: borra `dist/win-unpacked/` y vuelve a compilar.
 
-`npm run dist` genera ademas el instalador, pero **hoy falla en una maquina
-normal**: `electron-builder` descarga sus herramientas de firma en un `.7z` que
-contiene enlaces simbolicos de macOS, y Windows no deja crearlos sin el
-privilegio correspondiente:
+### El fallo de los symlinks de `winCodeSign`
+
+`electron-builder` baja sus herramientas para Windows (entre ellas `rcedit`,
+que es quien incrusta el icono y la version en el `.exe`) dentro de un `.7z`
+que **tambien** trae enlaces simbolicos de macOS. Windows no deja crearlos sin
+privilegios, `7za` devuelve error y electron-builder aborta:
 
 ```
 ERROR: Cannot create symbolic link ... winCodeSign\...\libcrypto.dylib
 ```
 
-Para que funcione hay que darle ese privilegio, de una de estas dos formas:
+Afecta a `pack` igual que a `dist`, y lo peligroso es que **no siempre se nota**:
+`dist/win-unpacked/` puede quedar completo y arrancar, pero con el icono y los
+metadatos de Electron en vez de los de Nimbo. Compruebalo asi:
 
-- Activar el **Modo de desarrollador** (Configuracion → Sistema → Para
-  desarrolladores), que concede el permiso de forma permanente, o
-- lanzar `npm run dist` desde una terminal **como administrador**.
+```powershell
+(Get-Item dist\win-unpacked\Nimbo.exe).VersionInfo.ProductName   # Nimbo, no Electron
+```
 
-Con cualquiera de las dos, la descarga queda en cache y las siguientes builds
-ya no la repiten. Si no, `npm run pack` cubre el caso normal.
+Los dos enlaces que fallan son de macOS y aqui no sirven para nada, asi que
+basta con extraer el paquete a mano ignorandolos, con el nombre exacto que
+electron-builder busca en su cache:
+
+```bash
+CACHE="$LOCALAPPDATA/electron-builder/Cache/winCodeSign"
+./node_modules/7zip-bin/win/x64/7za.exe x -y "$CACHE"/*.7z -o"$CACHE/winCodeSign-2.6.0"
+```
+
+Con esa carpeta ya en su sitio no vuelve a descargar, y las builds salen
+limpias. Las alternativas, si prefieres conceder el privilegio: activar el
+**Modo de desarrollador** (Configuracion -> Sistema -> Para desarrolladores) o
+lanzar la build desde una terminal **como administrador**.
+
+Ojo con la cache si has sufrido esto: cada intento fallido deja una carpeta
+huerfana y su `.7z` de 5,6 MB en `winCodeSign/`. Se acumulan rapido (llegaron a
+225 MB aqui); se pueden borrar todas menos `winCodeSign-2.6.0`.
 
 ## Uso
 
@@ -144,7 +167,7 @@ en la raíz de la rueda seleccionada si no.
 La configuración vive en:
 
 ```
-%APPDATA%\opie-launcher\config.json
+%APPDATA%\Nimbo\config.json
 ```
 
 ## Temas
@@ -167,14 +190,20 @@ sector de luz con las flechas.
 
 ```
 main.js            Proceso principal: ventanas, atajos globales, bandeja, IPC
-preload.js         Puente aislado renderer ↔ main (window.opie)
+preload.js         Puente aislado renderer ↔ main (window.nimbo)
 appScanner.js      Escaneo del menú Inicio y alta de programas sueltos
 processUtils.js    Detectar y cerrar procesos ya en marcha
+assets/
+  logo.svg              La marca sobre transparente (bandeja)
+  icon.svg / icon.png   Icono de aplicacion, con fondo (ventanas e instalador)
+  tray.png              El de la bandeja, transparente
+  wordmark.svg          NIMBO monolineal; la O es el propio simbolo
 renderer/
   theme.css             Paletas: todas las variables de color, para las dos ventanas
   radial.html/css/js    La rueda
   settings.html/js      La ventana de configuración
 preview/themes.html   Las tres paletas lado a lado, sin arrancar la app
+preview/logo.html     La marca a sus tamanos reales, incluido el de 16 px
 test_radial.js        Check de la navegación del anillo
 test_appscanner.js    Check del alta de programas
 ```
@@ -224,7 +253,7 @@ conviene saberlas antes de "simplificarlas":
   abierto" no funciona con programas que corren como administrador. Está
   comprobado que `Get-CimInstance Win32_Process` tampoco los ve desde una
   sesión sin elevar (mismos procesos ilegibles por ambas vías), así que no hay
-  arreglo sin elevar Opie entero. Al menos ya no falla en silencio: avisa por
+  arreglo sin elevar Nimbo entero. Al menos ya no falla en silencio: avisa por
   consola con los PID afectados.
 - Sólo Windows. El escaneo de programas, el autoarranque y el cierre de
   procesos dependen del registro, `taskkill` y el menú Inicio.

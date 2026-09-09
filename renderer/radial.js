@@ -14,33 +14,18 @@ let sweepAngle = 0;
 const CONFIRM_MS = 110;
 
 async function init() {
-  document.documentElement.dataset.theme = await window.opie.getTheme();
+  document.documentElement.dataset.theme = await window.nimbo.getTheme();
   // Escalamos el diseno completo en vez de recalcular la geometria: asi el
   // anillo, los iconos, las etiquetas y el sector de luz no pueden quedar a
   // escalas distintas entre si.
-  document.documentElement.style.setProperty('--wheel-scale', (await window.opie.getWheelSize()) / 480);
-  const wheel = await window.opie.getActiveWheel();
-  if (!wheel) {
-    renderEmpty();
-    return;
-  }
-  wheelName = wheel.name || '';
-  stack = [Array.isArray(wheel.items) ? wheel.items : []];
+  document.documentElement.style.setProperty('--wheel-scale', (await window.nimbo.getWheelSize()) / 480);
+  // Sin ninguna rueda configurada se pinta igual que una rueda vacia: el
+  // centro sigue siendo el engranaje que abre los ajustes, que es lo unico
+  // que se puede hacer en los dos casos.
+  const wheel = await window.nimbo.getActiveWheel();
+  wheelName = wheel ? wheel.name || '' : '';
+  stack = [wheel && Array.isArray(wheel.items) ? wheel.items : []];
   renderLevel();
-}
-
-function renderEmpty() {
-  const wheelEl = document.getElementById('wheel');
-  wheelEl.innerHTML = '';
-  const ring = document.createElement('div');
-  ring.className = 'ring';
-  wheelEl.appendChild(ring);
-  sweepEl = null;
-
-  const hint = document.createElement('div');
-  hint.id = 'hint';
-  hint.textContent = 'No hay ninguna rueda configurada todavía.';
-  wheelEl.appendChild(hint);
 }
 
 // Abre un item. Comparten camino el click y el Enter del teclado, para que
@@ -50,9 +35,9 @@ function activate(item) {
     stack.push(Array.isArray(item.items) ? item.items : []);
     renderLevel();
   } else if (item.type === 'link') {
-    window.opie.openLink(item.url);
+    window.nimbo.openLink(item.url);
   } else {
-    window.opie.launchApp(item.execPath, item.toggleClose !== false, item.args);
+    window.nimbo.launchApp(item.execPath, item.toggleClose !== false, item.args);
   }
 }
 
@@ -61,7 +46,7 @@ function goBack() {
     stack.pop();
     renderLevel();
   } else {
-    window.opie.closeRadial();
+    window.nimbo.closeRadial();
   }
 }
 
@@ -140,7 +125,7 @@ function renderLevel() {
   center.title = isRoot ? 'Configurar' : 'Atrás';
   center.addEventListener('click', () => {
     if (isRoot) {
-      window.opie.openSettings();
+      window.nimbo.openSettings();
     } else {
       stack.pop();
       renderLevel();

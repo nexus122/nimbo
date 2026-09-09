@@ -69,7 +69,7 @@ Get-Process | ForEach-Object {
     // sesion sin elevar: ninguno de los dos puede leer la ruta de un proceso
     // que corre como administrador u otro usuario, asi que "cerrar si ya
     // esta abierto" no puede confirmarlos ni cerrarlos. No hay arreglo real
-    // sin elevar Opie entero, pero al menos que se sepa por que en vez de
+    // sin elevar Nimbo entero, pero al menos que se sepa por que en vez de
     // que el reintento parezca no hacer nada.
     console.warn(
       `[processUtils] ${blind.length} proceso(s) con nombre "${baseName}" pero ruta no legible (PIDs ${blind.join(', ')}); probablemente corren elevados y no se pueden confirmar ni cerrar desde aqui.`

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -12 493 124" width="493" height="124" role="img" aria-label="Nimbo">
+  <title>Nimbo</title>
+  <!-- Wordmark monolineal: mismo grosor de trazo que el aro del simbolo, asi
+       que las letras y la marca hablan el mismo idioma. La O NO es una letra
+       dibujada aparte: es el simbolo, con su arco encendido. Por eso no hace
+       falta poner el logo al lado del nombre.
+       Construido con trazos en vez de tipografia real: no depende de que
+       Space Grotesk este instalada, y ya viene "vectorizado". -->
+  <g fill="none" stroke="#E8EAED" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+    <!-- N -->
+    <path d="M0,100 L0,0 L72,100 L72,0"/>
+    <!-- I -->
+    <path d="M106,0 L106,100"/>
+    <!-- M -->
+    <path d="M140,100 L140,0 L186,60 L232,0 L232,100"/>
+    <!-- B -->
+    <path d="M266,0 L266,100"/>
+    <path d="M266,0 H304 A25,25 0 0 1 304,50 H266"/>
+    <path d="M266,50 H310 A25,25 0 0 1 310,100 H266"/>
+    <!-- O: el simbolo -->
+    <circle cx="419" cy="50" r="42" stroke="#9AA1AB"/>
+  </g>
+  <path d="M389.30,20.30 A42,42 0 0 1 448.70,20.30" fill="none" stroke="#E8A33D" stroke-width="16" stroke-linecap="round"/>
+</svg>

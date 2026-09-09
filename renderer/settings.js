@@ -29,39 +29,30 @@ function showPrompt(title, defaultValue = '') {
   return new Promise((resolve) => {
     const overlay = document.getElementById('prompt-overlay');
     const input = document.getElementById('prompt-input');
-    const titleEl = document.getElementById('prompt-title');
-    const okBtn = document.getElementById('prompt-ok');
-    const cancelBtn = document.getElementById('prompt-cancel');
-
-    titleEl.textContent = title;
+    document.getElementById('prompt-title').textContent = title;
     input.value = defaultValue;
     overlay.hidden = false;
     input.focus();
     input.select();
 
-    function cleanup() {
+    // AbortController quita todos los listeners de una vez. Antes habia que
+    // acordarse de un removeEventListener por cada uno, y olvidar uno deja el
+    // dialogo respondiendo a la pulsacion siguiente.
+    const ac = new AbortController();
+    const signal = ac.signal;
+    const done = (value) => {
       overlay.hidden = true;
-      okBtn.removeEventListener('click', onOk);
-      cancelBtn.removeEventListener('click', onCancel);
-      input.removeEventListener('keydown', onKeydown);
-    }
-    function onOk() {
-      const value = input.value.trim();
-      cleanup();
-      resolve(value || null);
-    }
-    function onCancel() {
-      cleanup();
-      resolve(null);
-    }
-    function onKeydown(e) {
-      if (e.key === 'Enter') onOk();
-      if (e.key === 'Escape') onCancel();
-    }
+      ac.abort();
+      resolve(value);
+    };
+    const ok = () => done(input.value.trim() || null);
 
-    okBtn.addEventListener('click', onOk);
-    cancelBtn.addEventListener('click', onCancel);
-    input.addEventListener('keydown', onKeydown);
+    document.getElementById('prompt-ok').addEventListener('click', ok, { signal });
+    document.getElementById('prompt-cancel').addEventListener('click', () => done(null), { signal });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') ok();
+      if (e.key === 'Escape') done(null);
+    }, { signal });
   });
 }
 
@@ -94,62 +85,33 @@ function showIconPicker() {
   populateEmojiGrid();
   return new Promise((resolve) => {
     const overlay = document.getElementById('iconpicker-overlay');
-    const grid = document.getElementById('iconpicker-emoji-grid');
     const emojiInput = document.getElementById('iconpicker-emoji-input');
-    const emojiOk = document.getElementById('iconpicker-emoji-ok');
-    const imageBtn = document.getElementById('iconpicker-image-btn');
-    const resetBtn = document.getElementById('iconpicker-reset-btn');
-    const cancelBtn = document.getElementById('iconpicker-cancel');
-
     emojiInput.value = '';
     overlay.hidden = false;
     emojiInput.focus();
 
-    function cleanup() {
+    const ac = new AbortController();
+    const signal = ac.signal;
+    const done = (value) => {
       overlay.hidden = true;
-      grid.removeEventListener('click', onGridClick);
-      emojiOk.removeEventListener('click', onEmojiOk);
-      imageBtn.removeEventListener('click', onImage);
-      resetBtn.removeEventListener('click', onReset);
-      cancelBtn.removeEventListener('click', onCancel);
-      emojiInput.removeEventListener('keydown', onKeydown);
-    }
-    function onGridClick(e) {
-      const btn = e.target.closest('button[data-emoji]');
-      if (!btn) return;
-      const emoji = btn.dataset.emoji;
-      cleanup();
-      resolve(emoji);
-    }
-    function onEmojiOk() {
-      const value = emojiInput.value.trim();
-      cleanup();
-      resolve(value || null);
-    }
-    async function onImage() {
-      const dataUrl = await window.opie.pickIconFile();
-      cleanup();
-      resolve(dataUrl || null);
-    }
-    function onReset() {
-      cleanup();
-      resolve('reset');
-    }
-    function onCancel() {
-      cleanup();
-      resolve(null);
-    }
-    function onKeydown(e) {
-      if (e.key === 'Enter') onEmojiOk();
-      if (e.key === 'Escape') onCancel();
-    }
+      ac.abort();
+      resolve(value);
+    };
+    const on = (id, ev, fn) => document.getElementById(id).addEventListener(ev, fn, { signal });
+    const okEmoji = () => done(emojiInput.value.trim() || null);
 
-    grid.addEventListener('click', onGridClick);
-    emojiOk.addEventListener('click', onEmojiOk);
-    imageBtn.addEventListener('click', onImage);
-    resetBtn.addEventListener('click', onReset);
-    cancelBtn.addEventListener('click', onCancel);
-    emojiInput.addEventListener('keydown', onKeydown);
+    on('iconpicker-emoji-grid', 'click', (e) => {
+      const btn = e.target.closest('button[data-emoji]');
+      if (btn) done(btn.dataset.emoji);
+    });
+    on('iconpicker-emoji-ok', 'click', okEmoji);
+    on('iconpicker-image-btn', 'click', async () => done((await window.nimbo.pickIconFile()) || null));
+    on('iconpicker-reset-btn', 'click', () => done('reset'));
+    on('iconpicker-cancel', 'click', () => done(null));
+    emojiInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') okEmoji();
+      if (e.key === 'Escape') done(null);
+    }, { signal });
   });
 }
 
@@ -185,7 +147,7 @@ function renderThemes(current) {
 
     btn.addEventListener('click', async () => {
       document.documentElement.dataset.theme = theme.id;
-      await window.opie.setTheme(theme.id);
+      await window.nimbo.setTheme(theme.id);
       renderThemes(theme.id);
     });
     list.appendChild(btn);
@@ -209,7 +171,7 @@ function renderSizes(current) {
     btn.textContent = size.name;
     btn.title = `${size.px} píxeles`;
     btn.addEventListener('click', async () => {
-      renderSizes(await window.opie.setWheelSize(size.px));
+      renderSizes(await window.nimbo.setWheelSize(size.px));
       setStatus(`Rueda a ${size.px} px. Se ve al abrirla.`);
     });
     list.appendChild(btn);
@@ -217,12 +179,12 @@ function renderSizes(current) {
 }
 
 async function init() {
-  renderSizes(await window.opie.getWheelSize());
-  const theme = await window.opie.getTheme();
+  renderSizes(await window.nimbo.getWheelSize());
+  const theme = await window.nimbo.getTheme();
   document.documentElement.dataset.theme = theme;
   renderThemes(theme);
 
-  wheels = await window.opie.getWheelsConfig();
+  wheels = await window.nimbo.getWheelsConfig();
   if (!wheels || wheels.length === 0) {
     wheels = [{ id: newId(), name: 'Principal', shortcut: 'Control+Shift+Space', items: [] }];
   }
@@ -230,8 +192,8 @@ async function init() {
   renderAll();
 
   const autostartCb = document.getElementById('autostart-checkbox');
-  autostartCb.checked = await window.opie.getAutostart();
-  autostartCb.addEventListener('change', () => window.opie.setAutostart(autostartCb.checked));
+  autostartCb.checked = await window.nimbo.getAutostart();
+  autostartCb.addEventListener('change', () => window.nimbo.setAutostart(autostartCb.checked));
 }
 
 function renderAll() {
@@ -304,8 +266,7 @@ function renderWheelEditor(wheel, main) {
 
   const shortcutLabel = document.createElement('span');
   shortcutLabel.textContent = 'Atajo de teclado:';
-  shortcutLabel.style.fontSize = '12px';
-  shortcutLabel.style.color = '#aaa';
+  shortcutLabel.className = 'editor-label';
   shortcutRow.appendChild(shortcutLabel);
 
   const shortcutBtn = document.createElement('button');
@@ -381,7 +342,7 @@ function renderTree(items, container, depth) {
 
     if (item.type === 'link') {
       const urlSpan = document.createElement('span');
-      urlSpan.style.cssText = 'font-size:10.5px; color:#888; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;';
+      urlSpan.className = 'tree-url';
       urlSpan.textContent = item.url;
       row.appendChild(urlSpan);
     }
@@ -469,9 +430,29 @@ function renderTree(items, container, depth) {
 function makeActionsRow(targetItems) {
   const actions = document.createElement('div');
   actions.className = 'tree-actions';
-  actions.appendChild(makeAddAppButton(targetItems));
-  actions.appendChild(makeAddLinkButton(targetItems));
-  actions.appendChild(makeAddFolderButton(targetItems));
+
+  actions.appendChild(makeAddButton(targetItems, '+ Añadir programa', () => openPicker(targetItems)));
+
+  actions.appendChild(
+    makeAddButton(targetItems, '+ Añadir enlace', async () => {
+      const name = await showPrompt('Nombre del enlace:');
+      if (!name) return;
+      let url = await showPrompt('URL:', 'https://');
+      if (!url || url === 'https://') return;
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      targetItems.push({ id: newId(), type: 'link', name, url });
+      renderAll();
+    })
+  );
+
+  actions.appendChild(
+    makeAddButton(targetItems, '+ Añadir carpeta', async () => {
+      const name = await showPrompt('Nombre de la carpeta:');
+      if (!name) return;
+      targetItems.push({ id: newId(), type: 'folder', name, items: [] });
+      renderAll();
+    })
+  );
 
   const count = document.createElement('span');
   count.className = 'items-count' + (targetItems.length >= MAX_ITEMS ? ' full' : '');
@@ -491,31 +472,6 @@ function makeAddButton(targetItems, label, onClick) {
     btn.addEventListener('click', onClick);
   }
   return btn;
-}
-
-function makeAddAppButton(targetItems) {
-  return makeAddButton(targetItems, '+ Añadir programa', () => openPicker(targetItems));
-}
-
-function makeAddLinkButton(targetItems) {
-  return makeAddButton(targetItems, '+ Añadir enlace', async () => {
-    const name = await showPrompt('Nombre del enlace:');
-    if (!name) return;
-    let url = await showPrompt('URL:', 'https://');
-    if (!url || url === 'https://') return;
-    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-    targetItems.push({ id: newId(), type: 'link', name, url });
-    renderAll();
-  });
-}
-
-function makeAddFolderButton(targetItems) {
-  return makeAddButton(targetItems, '+ Añadir carpeta', async () => {
-    const name = await showPrompt('Nombre de la carpeta:');
-    if (!name) return;
-    targetItems.push({ id: newId(), type: 'folder', name, items: [] });
-    renderAll();
-  });
 }
 
 // --- Captura de atajo de teclado ---
@@ -560,7 +516,7 @@ function eventToAccelerator(e) {
 async function shortcutProblem(wheel, accel) {
   const clash = wheels.find((w) => w.id !== wheel.id && w.shortcut === accel);
   if (clash) return `"${accel}" ya lo usa la rueda "${clash.name}".`;
-  const free = await window.opie.checkShortcut(accel);
+  const free = await window.nimbo.checkShortcut(accel);
   if (!free) return `"${accel}" está ocupado por otra aplicación (o Windows no lo permite).`;
   return null;
 }
@@ -637,7 +593,7 @@ async function runScan() {
   }
   listEl.textContent = 'Escaneando programas instalados...';
   try {
-    scannedAppsCache = await window.opie.scanApps();
+    scannedAppsCache = await window.nimbo.scanApps();
   } catch (err) {
     listEl.textContent = 'No se pudo escanear los programas instalados.';
     console.error(err);
@@ -727,7 +683,7 @@ function renderPickerList(filter) {
 document.getElementById('picker-scan').addEventListener('click', runScan);
 
 document.getElementById('picker-browse').addEventListener('click', async () => {
-  const result = await window.opie.pickAppFile();
+  const result = await window.nimbo.pickAppFile();
   if (addResolvedApp(pickerTargetItems, result)) {
     document.getElementById('picker-overlay').hidden = true;
   }
@@ -736,7 +692,7 @@ document.getElementById('picker-browse').addEventListener('click', async () => {
 document.getElementById('picker-paste').addEventListener('click', async () => {
   const raw = await showPrompt('Pega la ruta del programa (.exe o .lnk):');
   if (!raw) return;
-  const result = await window.opie.appFromPath(raw);
+  const result = await window.nimbo.appFromPath(raw);
   if (addResolvedApp(pickerTargetItems, result)) {
     document.getElementById('picker-overlay').hidden = true;
   }
@@ -774,7 +730,7 @@ document.getElementById('save').addEventListener('click', async () => {
     used.set(w.shortcut, w.name);
   }
 
-  const { failed } = await window.opie.saveWheelsConfig(wheels);
+  const { failed } = await window.nimbo.saveWheelsConfig(wheels);
   if (failed.length > 0) {
     const list = failed.map((f) => `"${f.shortcut}" (${f.wheel})`).join(', ');
     setStatus(`Guardado, pero estos atajos no se han podido registrar: ${list}`, true);
@@ -833,12 +789,12 @@ window.addEventListener('drop', async (e) => {
     return;
   }
 
-  const paths = Array.from(e.dataTransfer.files).map((f) => window.opie.pathForFile(f));
+  const paths = Array.from(e.dataTransfer.files).map((f) => window.nimbo.pathForFile(f));
   if (paths.length === 0) return;
 
   let added = 0;
   for (const filePath of paths) {
-    if (addResolvedApp(target.items, await window.opie.appFromPath(filePath))) added++;
+    if (addResolvedApp(target.items, await window.nimbo.appFromPath(filePath))) added++;
   }
   if (paths.length > 1) setStatus(`Añadidos ${added} de ${paths.length}.`, added === 0);
 });

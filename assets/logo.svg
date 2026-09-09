@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Nimbo">
+  <title>Nimbo</title>
+  <!-- El simbolo: un nucleo y su halo. El aro es la rueda apagada; el arco de
+       laton es el sector de luz que sigue a la seleccion, que es la interaccion
+       que define la aplicacion.
+       El arco lleva EXACTAMENTE el mismo grosor que el aro (24): en cuanto es
+       mas gordo se sale de la silueta y deja de leerse como "el aro encendido"
+       para parecer una pieza pegada encima.
+       Sobre transparente, para la bandeja. Para el icono de aplicacion (fondo
+       solido) usar icon.svg. -->
+  <defs>
+    <filter id="nimbo-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+
+  <!-- Resplandor. Unico adorno del fichero: borra este grupo para la version
+       plana de 16 px, donde el desenfoque solo ensucia. -->
+  <g filter="url(#nimbo-glow)" opacity="0.55">
+    <path d="M65.77,65.77 A88,88 0 0 1 190.23,65.77" fill="none" stroke="#E8A33D" stroke-width="24" stroke-linecap="round"/>
+    <circle cx="128" cy="128" r="22" fill="#E8A33D"/>
+  </g>
+
+  <!-- Aro apagado -->
+  <circle cx="128" cy="128" r="88" fill="none" stroke="#9AA1AB" stroke-width="24"/>
+  <!-- Arco encendido: un cuarto de vuelta, centrado arriba -->
+  <path d="M65.77,65.77 A88,88 0 0 1 190.23,65.77" fill="none" stroke="#E8A33D" stroke-width="24" stroke-linecap="round"/>
+  <!-- Nucleo -->
+  <circle cx="128" cy="128" r="22" fill="#E8A33D"/>
+</svg>

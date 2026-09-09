@@ -1,6 +1,6 @@
 {
-  "name": "opie-launcher",
-  "productName": "Opie Launcher",
+  "name": "nimbo",
+  "productName": "Nimbo",
   "version": "0.1.0",
   "description": "Menu radial para Windows: un atajo, una rueda, tus programas.",
   "author": "Juan Romero",
@@ -17,9 +17,9 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.juanromero.opielauncher",
+    "appId": "com.juanromero.nimbo",
     "electronDist": "node_modules/electron/dist",
-    "productName": "Opie Launcher",
+    "productName": "Nimbo",
     "directories": {
       "output": "dist"
     },
@@ -28,7 +28,7 @@
       "!test_*.js",
       "!check-not-running.js",
       "renderer/**/*",
-      "assets/**/*",
+      "assets/*.png",
       "package.json"
     ],
     "win": {

@@ -5,7 +5,7 @@ const os = require('os');
 const path = require('path');
 const { loadConfig, saveConfig } = require('./config');
 
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'opie-config-test-'));
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nimbo-config-test-'));
 
 // --- fichero inexistente: primera ejecucion, config por defecto ---
 const p1 = path.join(dir, 'no-existe.json');

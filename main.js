@@ -18,7 +18,11 @@ const CONFIG_PATH = path.join(app.getPath('userData'), 'config.json');
 const DESIGN_SIZE = 480;
 const WHEEL_SIZES = [380, 480, 620, 780];
 const ICON_PATH = path.join(__dirname, 'assets', 'icon.png');
-const TRAY_ICON = nativeImage.createFromPath(ICON_PATH).resize({ width: 16, height: 16 });
+// La bandeja tiene su propio PNG transparente: el icono de aplicacion lleva
+// fondo solido y a 16 px se leeria como un cuadrado, no como la marca.
+const TRAY_ICON = nativeImage
+  .createFromPath(path.join(__dirname, 'assets', 'tray.png'))
+  .resize({ width: 16, height: 16 });
 
 let radialWindow = null;
 let settingsWindow = null;
@@ -155,7 +159,7 @@ function createSettingsWindow() {
 }
 
 const AUTOSTART_REG_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';
-const AUTOSTART_REG_VALUE = 'OpieLauncher';
+const AUTOSTART_REG_VALUE = 'Nimbo';
 
 function getAutostart() {
   if (app.isPackaged) {
@@ -198,7 +202,7 @@ app.whenReady().then(() => {
   registerShortcuts();
 
   tray = new Tray(TRAY_ICON);
-  tray.setToolTip('Opie Launcher');
+  tray.setToolTip('Nimbo');
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: 'Configurar...', click: createSettingsWindow },
@@ -340,7 +344,7 @@ ipcMain.handle('launch-app', async (_evt, execPath, toggleClose = true, args = '
   if (args) {
     // shell.openPath no sabe pasar argumentos, asi que con argumentos usamos
     // spawn desligado (detached + stdio ignore + unref) para que el programa
-    // sobreviva aunque Opie se cierre. Sin argumentos NO tocamos esto: dejamos
+    // sobreviva aunque Nimbo se cierre. Sin argumentos NO tocamos esto: dejamos
     // shell.openPath, que es el camino comun y maneja mejor los casos raros
     // (UAC, tipos de fichero asociados, etc).
     try {

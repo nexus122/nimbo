@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Nimbo - marca</title>
+<!-- Los tamanos reales a los que vive la marca, sin arrancar la aplicacion.
+     El unico que decide de verdad es el de 16 px: es el de la bandeja. -->
+<style>
+  body { margin: 0; font: 13px 'Segoe UI', system-ui, sans-serif; }
+  .panel { padding: 40px; display: flex; gap: 48px; align-items: flex-end; flex-wrap: wrap; }
+  .dark { background: #16181D; color: #9AA1AB; }
+  .light { background: #EEF0F3; color: #5B6570; }
+  .taskbar { background: #202020; }
+  .taskbar.claro { background: #F3F3F3; }
+  figure { margin: 0; text-align: center; }
+  figcaption { margin-top: 10px; font-family: Consolas, monospace; font-size: 11px; }
+  img { display: block; margin: 0 auto; image-rendering: auto; }
+  h2 { margin: 0; padding: 20px 40px 0; font-weight: 500; font-size: 12px;
+       letter-spacing: .18em; text-transform: uppercase; }
+</style>
+
+<div class="dark">
+  <h2>Simbolo sobre oscuro</h2>
+  <div class="panel">
+    <figure><img src="../assets/logo.svg" width="256"><figcaption>256</figcaption></figure>
+    <figure><img src="../assets/logo.svg" width="64"><figcaption>64</figcaption></figure>
+    <figure><img src="../assets/logo.svg" width="32"><figcaption>32</figcaption></figure>
+    <figure><img src="../assets/logo.svg" width="16"><figcaption>16 · bandeja</figcaption></figure>
+  </div>
+</div>
+
+<div class="light">
+  <h2>Simbolo sobre claro</h2>
+  <div class="panel">
+    <figure><img src="../assets/logo.svg" width="64"><figcaption>64</figcaption></figure>
+    <figure><img src="../assets/logo.svg" width="32"><figcaption>32</figcaption></figure>
+    <figure><img src="../assets/logo.svg" width="16"><figcaption>16 · bandeja</figcaption></figure>
+  </div>
+</div>
+
+<div class="dark">
+  <h2>Icono de aplicacion</h2>
+  <div class="panel">
+    <figure><img src="../assets/icon.svg" width="128"><figcaption>128</figcaption></figure>
+    <figure><img src="../assets/icon.svg" width="48"><figcaption>48 · barra de tareas</figcaption></figure>
+    <figure><img src="../assets/icon.svg" width="32"><figcaption>32</figcaption></figure>
+    <figure><img src="../assets/icon.svg" width="16"><figcaption>16</figcaption></figure>
+  </div>
+</div>
+
+<div class="panel taskbar" style="padding:12px 40px; gap:20px; align-items:center;">
+  <img src="../assets/logo.svg" width="16">
+  <img src="../assets/icon.svg" width="16">
+  <span style="color:#9AA1AB; font-size:11px;">barra oscura: logo.svg (transparente) vs icon.svg (con fondo)</span>
+</div>
+<div class="panel taskbar claro" style="padding:12px 40px; gap:20px; align-items:center;">
+  <img src="../assets/logo.svg" width="16">
+  <img src="../assets/icon.svg" width="16">
+  <span style="color:#5B6570; font-size:11px;">barra clara: aqui se ve si el aro gris aguanta</span>
+</div>
+
+<div class="dark">
+  <h2>Wordmark</h2>
+  <div class="panel">
+    <figure><img src="../assets/wordmark.svg" width="360"><figcaption>360</figcaption></figure>
+    <figure><img src="../assets/wordmark.svg" width="180"><figcaption>180</figcaption></figure>
+  </div>
+</div>

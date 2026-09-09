@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
-contextBridge.exposeInMainWorld('opie', {
+contextBridge.exposeInMainWorld('nimbo', {
   getActiveWheel: () => ipcRenderer.invoke('get-active-wheel'),
   getWheelsConfig: () => ipcRenderer.invoke('get-wheels-config'),
   saveWheelsConfig: (wheels) => ipcRenderer.invoke('save-wheels-config', wheels),
