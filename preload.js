@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('nimbo', {
   // Un File soltado en la ventana ya no lleva .path (Electron lo quito): la
   // ruta real solo se puede sacar aqui, desde el preload.
   pathForFile: (file) => webUtils.getPathForFile(file),
+  missingPaths: (paths) => ipcRenderer.invoke('missing-paths', paths),
+  setSettingsDirty: (dirty) => ipcRenderer.send('settings-dirty', dirty),
   checkShortcut: (accelerator) => ipcRenderer.invoke('check-shortcut', accelerator),
   pickIconFile: () => ipcRenderer.invoke('pick-icon-file'),
   getAutostart: () => ipcRenderer.invoke('get-autostart'),

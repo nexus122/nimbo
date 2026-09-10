@@ -40,7 +40,10 @@ function loadConfig(configPath) {
       // del usuario por un fallo que probablemente no se repita al arrancar
       // otra vez. Que la sesion salga vacia es molesto; perderlo todo, no.
       console.error(`[config] "${configPath}" existe pero no se pudo leer, se arranca en blanco sin tocarlo:`, err.message);
-      return defaultConfig();
+      // Marcado para que nadie escriba encima: lo que devolvemos son ruedas
+      // vacias, y guardarlas se llevaria por delante las de verdad, que
+      // siguen intactas en el fichero que no hemos podido leer.
+      return { ...defaultConfig(), degraded: true };
     }
     // No existe: primera ejecucion. Crear la config por defecto es correcto.
     const config = defaultConfig();

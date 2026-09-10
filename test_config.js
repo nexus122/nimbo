@@ -48,6 +48,10 @@ const c6 = loadConfig(p6);
 assert.ok(Array.isArray(c6.wheels), 'debe arrancar con la config por defecto');
 assert.ok(fs.statSync(p6).isDirectory(), 'no debe haber tocado lo que ya habia en esa ruta');
 assert.ok(!fs.existsSync(p6 + '.tmp'), 'no debe ni intentar escribir');
+// La marca es lo que impide que la ventana de ajustes guarde encima estas
+// ruedas vacias creyendo que son las del usuario (main.js, save-wheels-config).
+assert.strictEqual(c6.degraded, true, 'la config ilegible debe venir marcada');
+assert.ok(!loadConfig(path.join(dir, 'nueva.json')).degraded, 'una config normal no lleva marca');
 
 // --- migracion desde el formato viejo (pinned -> wheels) ---
 const p4 = path.join(dir, 'legacy.json');

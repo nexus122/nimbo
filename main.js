@@ -10,6 +10,16 @@ const configFile = require('./config');
 // "Native Window Occlusion" choca con ventanas transparentes + always-on-top.
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 
+// Dos instancias no pueden convivir: los atajos globales los coge la primera,
+// asi que la segunda arranca con la rueda muda y dos iconos en la bandeja, sin
+// ninguna pista de por que. La segunda se retira y le pide a la primera que
+// abra los ajustes, que es lo unico util que podia querer quien la lanzo.
+// Ojo en desarrollo: `npm start` con la version instalada abierta se cierra
+// solo, y es correcto — comparten config y atajos.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) app.quit();
+else app.on('second-instance', () => createSettingsWindow());
+
 const CONFIG_PATH = path.join(app.getPath('userData'), 'config.json');
 // Tamano al que esta dibujado el CSS de la rueda. No se toca: para agrandarla
 // se escala el diseno entero (ver --wheel-scale en radial.js), en vez de
@@ -141,11 +151,28 @@ function registerShortcuts() {
   return failed;
 }
 
+// Lo que el renderer nos ha dicho la ultima vez sobre si el arbol tiene
+// cambios sin guardar. Se pregunta al cerrar: el arbol solo se persiste al
+// pulsar Guardar, y un aspa por error se llevaba por delante todo el rato.
+let settingsDirty = false;
+ipcMain.on('settings-dirty', (_evt, dirty) => {
+  settingsDirty = dirty;
+});
+
+// Los avisos van por globo de la bandeja: en la app instalada no hay consola
+// donde leer un console.error, asi que un fallo se vivia como que Nimbo
+// simplemente no hacia nada.
+function notify(title, content) {
+  console.error(`[${title}] ${content}`);
+  if (tray && !tray.isDestroyed()) tray.displayBalloon({ icon: ICON_PATH, title, content });
+}
+
 function createSettingsWindow() {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.focus();
     return;
   }
+  settingsDirty = false;
   settingsWindow = new BrowserWindow({
     width: 820,
     height: 680,
@@ -156,6 +183,24 @@ function createSettingsWindow() {
     },
   });
   settingsWindow.loadFile(path.join(__dirname, 'renderer', 'settings.html'));
+
+  // El dialogo lo pone el proceso principal, no un confirm() del renderer:
+  // Chromium ignora los dialogos lanzados desde beforeunload, asi que alli la
+  // pregunta no llegaria a verse y la respuesta seria siempre "no".
+  settingsWindow.on('close', (e) => {
+    if (!settingsDirty) return;
+    const choice = dialog.showMessageBoxSync(settingsWindow, {
+      type: 'warning',
+      buttons: ['Cerrar sin guardar', 'Cancelar'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Nimbo',
+      message: 'Hay cambios sin guardar.',
+      detail: 'Si cierras ahora se pierden los cambios en las ruedas.',
+    });
+    if (choice === 1) e.preventDefault();
+    else settingsDirty = false;
+  });
 }
 
 const AUTOSTART_REG_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';
@@ -199,7 +244,8 @@ function applyAutostart(enabled) {
 }
 
 app.whenReady().then(() => {
-  registerShortcuts();
+  if (!gotSingleInstanceLock) return; // esta instancia ya se esta cerrando
+  const failed = registerShortcuts();
 
   tray = new Tray(TRAY_ICON);
   tray.setToolTip('Nimbo');
@@ -216,6 +262,17 @@ app.whenReady().then(() => {
       { label: 'Salir', click: () => app.quit() },
     ])
   );
+
+  // En la app instalada no hay consola donde leer el error de registerShortcuts:
+  // sin este globo, un atajo que tiene cogido otro programa se vive como que
+  // Nimbo simplemente no hace nada al arrancar.
+  if (failed.length > 0) {
+    notify(
+      'Nimbo: atajo no disponible',
+      failed.map((f) => `${f.shortcut} — rueda "${f.wheel}"`).join('\n') +
+        '\nLo tiene cogido otro programa. Cambia el atajo en Configurar...'
+    );
+  }
 });
 
 app.on('will-quit', () => {
@@ -231,12 +288,26 @@ ipcMain.handle('get-active-wheel', () => {
   return config.wheels.find((w) => w.id === activeWheelId) || config.wheels[0] || null;
 });
 
-ipcMain.handle('get-wheels-config', () => loadConfig().wheels);
+ipcMain.handle('get-wheels-config', () => {
+  const config = loadConfig();
+  return { wheels: config.wheels, degraded: !!config.degraded };
+});
 
 ipcMain.handle('save-wheels-config', (_evt, wheels) => {
+  const current = loadConfig();
+  // Si el config no se ha podido leer en este arranque, lo que se ha estado
+  // editando son las ruedas vacias por defecto: guardarlas machacaria las de
+  // verdad, que siguen enteras en disco. No se guarda y se dice por que.
+  if (current.degraded) {
+    return {
+      error:
+        'No se guarda: config.json no se ha podido leer en este arranque y guardarlo ahora borraría tus ruedas. Cierra Nimbo y vuelve a abrirlo.',
+      failed: [],
+    };
+  }
   // Conservamos el resto del config (el tema, y lo que venga despues): antes
   // esto escribia { wheels } a secas y se llevaba por delante lo demas.
-  saveConfig({ ...loadConfig(), wheels });
+  saveConfig({ ...current, wheels });
   return { failed: registerShortcuts() };
 });
 
@@ -294,6 +365,11 @@ ipcMain.handle('pick-app-file', async () => {
 
 ipcMain.handle('app-from-path', (_evt, filePath) => appFromPath(filePath));
 
+// De una lista de rutas devuelve las que ya no existen. Un programa
+// desinstalado se quedaba mudo en la rueda sin decir por que; asi los ajustes
+// pueden marcarlo. Va en bloque para no hacer un ida y vuelta por item.
+ipcMain.handle('missing-paths', (_evt, paths) => paths.filter((p) => !fs.existsSync(p)));
+
 ipcMain.handle('get-autostart', () => getAutostart());
 ipcMain.handle('set-autostart', (_evt, enabled) => {
   applyAutostart(enabled);
@@ -349,22 +425,30 @@ ipcMain.handle('launch-app', async (_evt, execPath, toggleClose = true, args = '
     // (UAC, tipos de fichero asociados, etc).
     try {
       const child = spawn(execPath, parseWindowsArgs(args), { detached: true, stdio: 'ignore' });
-      child.on('error', (err) => console.error('Error al abrir', execPath, err.message));
+      child.on('error', (err) => notify('Nimbo: no se pudo abrir', `${execPath}\n${err.message}`));
       child.unref();
     } catch (err) {
-      console.error('Error al abrir', execPath, err.message);
+      notify('Nimbo: no se pudo abrir', `${execPath}\n${err.message}`);
     }
     return;
   }
 
   const result = await shell.openPath(execPath);
-  if (result) console.error('Error al abrir', execPath, result);
+  if (result) notify('Nimbo: no se pudo abrir', `${execPath}\n${result}`);
 });
 
 ipcMain.handle('close-radial', hideRadial);
 
 ipcMain.handle('open-link', async (_evt, url) => {
   hideRadial();
+  // Lo que no trae esquema (http://, mailto:...) es una ruta local: una
+  // carpeta o un fichero, y eso lo abre el explorador, no el navegador. El
+  // esquema pide dos caracteres o mas: con uno, "D:" pasaria por esquema.
+  if (!/^[a-z][a-z0-9+.-]+:/i.test(url)) {
+    const err = await shell.openPath(url);
+    if (err) notify('Nimbo: no se pudo abrir', `${url}\n${err}`);
+    return;
+  }
   await shell.openExternal(url);
 });
 

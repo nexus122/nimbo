@@ -354,6 +354,48 @@
       .tree-row:hover {
         background: var(--fill-1);
       }
+      .tree-row[draggable='true'] {
+        cursor: grab;
+      }
+      .tree-row.dragging {
+        opacity: 0.4;
+      }
+      /* Marca de destino mientras arrastras: una linea arriba o abajo para
+         reordenar, el recuadro entero para "dentro de esta carpeta". */
+      .tree-row[data-drop='before'] {
+        box-shadow: inset 0 2px 0 var(--accent);
+      }
+      .tree-row[data-drop='after'] {
+        box-shadow: inset 0 -2px 0 var(--accent);
+      }
+      /* Rueda que recibe un item arrastrado desde el arbol. */
+      .wheel-item.drop-target {
+        background: var(--accent-soft);
+        outline: 1px dashed var(--accent-line);
+      }
+      .tree-row[data-drop='inside'] {
+        background: var(--accent-soft);
+        outline: 1px dashed var(--accent-line);
+      }
+      /* 22px de lado: con los 14 de antes la flecha era casi imposible de
+         acertar con el raton. El hueco de las filas que no son carpeta usa la
+         misma clase para que las columnas sigan cuadrando. */
+      .tree-caret {
+        width: 22px;
+        height: 22px;
+        flex-shrink: 0;
+        background: none;
+        border: none;
+        border-radius: 5px;
+        padding: 0;
+        color: var(--text-dim);
+        font-size: 11px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      button.tree-caret:hover {
+        color: var(--text);
+      }
       .tree-icon {
         width: 20px;
         height: 20px;
@@ -367,6 +409,19 @@
         font-size: 12.5px;
         flex: 1;
       }
+      /* Programa cuyo .exe ya no esta: en la rueda no haria nada, asi que se
+         marca aqui en vez de dejar que el usuario lo descubra pulsandolo. */
+      .tree-row.missing .tree-name {
+        color: var(--danger);
+        text-decoration: line-through;
+      }
+      .tree-row.missing .tree-icon {
+        opacity: 0.4;
+      }
+      .tree-warn {
+        font-size: 12px;
+        cursor: help;
+      }
       .tree-toggle {
         font-size: 10.5px;
         color: var(--text-dim);
@@ -376,28 +431,34 @@
         cursor: pointer;
         white-space: nowrap;
       }
+      /* Sin bajarle la opacidad: con el glifo de papelera a 12px y al 60%
+         no se distinguia de un pixel suelto. El peso lo lleva el hover. */
       .tree-del {
         background: none;
         border: none;
         cursor: pointer;
-        font-size: 12px;
-        opacity: 0.6;
-        padding: 2px 4px;
+        font-size: 14px;
+        line-height: 1;
+        padding: 3px 5px;
+        border-radius: 5px;
       }
       .tree-del:hover {
-        opacity: 1;
+        background: var(--danger-bg);
+        box-shadow: inset 0 0 0 1px var(--danger-line);
       }
       .tree-icon-btn {
         background: none;
         border: none;
         cursor: pointer;
         font-size: 11px;
-        opacity: 0.6;
-        padding: 2px 4px;
+        opacity: 0.8;
+        padding: 3px 5px;
+        border-radius: 5px;
         color: var(--text-dim);
       }
       .tree-icon-btn:hover {
         opacity: 1;
+        background: var(--fill-2);
       }
       .tree-icon-btn:disabled {
         opacity: 0.2;
@@ -697,6 +758,7 @@
       </div>
     </div>
 
+    <script src="treeMove.js"></script>
     <script src="settings.js"></script>
   </body>
 </html>

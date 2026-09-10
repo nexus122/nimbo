@@ -1,7 +1,7 @@
 {
   "name": "nimbo",
   "productName": "Nimbo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Menu radial para Windows: un atajo, una rueda, tus programas.",
   "author": "Juan Romero",
   "private": true,
@@ -11,7 +11,7 @@
     "start": "electron .",
     "pack": "node check-not-running.js && electron-builder --dir",
     "dist": "node check-not-running.js && electron-builder",
-    "test": "node test_radial.js && node test_appscanner.js && node test_config.js && node test_processutils.js"
+    "test": "node test_radial.js && node test_appscanner.js && node test_config.js && node test_processutils.js && node test_treemove.js && node test_preload.js"
   },
   "devDependencies": {
     "electron": "^32.0.0",

@@ -139,7 +139,8 @@ Desde la bandeja → **Configurar...**, o pulsando el centro de la rueda.
   o cualquier otra aplicación del sistema, te lo dice y no la asigna.
 - **Añadir programa / enlace / carpeta.** Máximo **8 elementos por nivel** — la
   rueda tiene un tamaño fijo y a partir de ahí las etiquetas se solapan. Si
-  necesitas más, agrupa en carpetas.
+  necesitas más, agrupa en carpetas. Un enlace acepta también una ruta del
+  equipo (`D:\Proyectos`, `\\servidor\comun`): la abre el explorador.
 
 ### Añadir un programa
 
@@ -166,7 +167,18 @@ en la raíz de la rueda seleccionada si no.
   próxima vez que abras la rueda.
 - **▲▼ para reordenar** y **✏️ para renombrar**, en cada fila. El número de la
   izquierda es la tecla que abre ese elemento en la rueda.
-- El resto de cambios **no se guardan solos**: pulsa **Guardar todo**.
+- **Arrastrar una fila** hace lo mismo y algo más: soltándola sobre la mitad
+  superior o inferior de otra se coloca antes o después, y soltándola **en el
+  centro de una carpeta** se mete dentro. Sacar algo de una carpeta es
+  soltarlo sobre una fila del nivel de arriba. Y soltándola **sobre otra rueda
+  de la columna izquierda** se la lleva a esa rueda, al final.
+- **▾ para plegar** una carpeta, y **Plegar todo** arriba del árbol para todas
+  a la vez. Es solo para mirar: no se guarda.
+- Un programa **tachado y en rojo** es uno cuyo `.exe` ya no está (lo has
+  desinstalado o movido). En la rueda no haría nada; se comprueba al abrir
+  esta ventana.
+- El resto de cambios **no se guardan solos**: pulsa **Guardar todo** o
+  **Ctrl+S**. Si cierras la ventana con cambios pendientes, te avisa.
 
 La configuración vive en:
 
@@ -206,10 +218,13 @@ renderer/
   theme.css             Paletas: todas las variables de color, para las dos ventanas
   radial.html/css/js    La rueda
   settings.html/js      La ventana de configuración
+  treeMove.js           Mover items en el árbol de ajustes (puro, testeable)
 preview/themes.html   Las tres paletas lado a lado, sin arrancar la app
 preview/logo.html     La marca a sus tamanos reales, incluido el de 16 px
 test_radial.js        Check de la navegación del anillo
 test_appscanner.js    Check del alta de programas
+test_treemove.js      Check de reordenar y meter/sacar de carpetas
+test_preload.js       Check de que main.js y preload.js exponen los mismos canales
 ```
 
 ## Notas de implementación
@@ -253,12 +268,20 @@ conviene saberlas antes de "simplificarlas":
 
 - La rueda sale centrada en el monitor, no bajo el cursor. Es deliberado: evita
   los casos raros al invocarla cerca de un borde.
+- **Si `config.json` no se puede leer** (antivirus, permisos, bloqueo), Nimbo
+  arranca con la configuración por defecto y **no deja guardar** hasta que se
+  reinicie: tus ruedas siguen intactas en el fichero y guardar las vacías se
+  las llevaría por delante.
 - **`Get-Process` no ve la ruta de los procesos elevados**, así que "cerrar si
   abierto" no funciona con programas que corren como administrador. Está
   comprobado que `Get-CimInstance Win32_Process` tampoco los ve desde una
   sesión sin elevar (mismos procesos ilegibles por ambas vías), así que no hay
   arreglo sin elevar Nimbo entero. Al menos ya no falla en silencio: avisa por
   consola con los PID afectados.
+- **Una sola instancia.** Si intentas abrir Nimbo con Nimbo ya en marcha, la
+  segunda se cierra y la primera abre la configuración. En desarrollo esto
+  significa que `npm start` se cierra solo si tienes la versión instalada
+  abierta: comparten config y atajos, no pueden convivir.
 - Sólo Windows. El escaneo de programas, el autoarranque y el cierre de
   procesos dependen del registro, `taskkill` y el menú Inicio.
 

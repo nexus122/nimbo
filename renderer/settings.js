@@ -9,6 +9,22 @@ let selectedWheelId = null;
 let scannedAppsCache = null;
 let pickerTargetItems = null;
 
+// Carpetas plegadas, por id. Es estado de la ventana y no de la config a
+// proposito: plegar es para mirar, no una preferencia que merezca disco.
+const collapsed = new Set();
+
+// Copia de las ruedas tal y como estan en disco, para saber si hay cambios
+// sin guardar sin tener que marcar una bandera en cada sitio que las toca.
+let savedSnapshot = '[]';
+
+// Rutas de programas que ya no existen, para marcarlos en el arbol.
+let missing = new Set();
+
+// Item que se esta arrastrando dentro del arbol: { items, item }. Hace falta
+// una global porque dataTransfer no deja leer lo que lleva durante el
+// dragover, solo en el drop, y el dragover es quien pinta la marca.
+let dragSrc = null;
+
 function newId() {
   return crypto.randomUUID();
 }
@@ -184,16 +200,50 @@ async function init() {
   document.documentElement.dataset.theme = theme;
   renderThemes(theme);
 
-  wheels = await window.nimbo.getWheelsConfig();
+  const config = await window.nimbo.getWheelsConfig();
+  wheels = config.wheels;
+  // Si el config no se ha podido leer, lo que se ve son ruedas vacias que no
+  // son las del usuario. Se avisa aqui, antes de que se ponga a rehacerlas.
+  if (config.degraded) {
+    setStatus('config.json no se ha podido leer en este arranque: lo que ves NO son tus ruedas y no se puede guardar. Cierra Nimbo y vuelve a abrirlo.', true);
+  }
   if (!wheels || wheels.length === 0) {
     wheels = [{ id: newId(), name: 'Principal', shortcut: 'Control+Shift+Space', items: [] }];
   }
   selectedWheelId = wheels[0].id;
+  savedSnapshot = JSON.stringify(wheels);
+  await refreshMissing();
   renderAll();
 
   const autostartCb = document.getElementById('autostart-checkbox');
   autostartCb.checked = await window.nimbo.getAutostart();
   autostartCb.addEventListener('change', () => window.nimbo.setAutostart(autostartCb.checked));
+}
+
+// Recorre un nivel y todo lo que cuelga de sus carpetas.
+function walkItems(items, fn) {
+  items.forEach((it) => {
+    fn(it);
+    if (it.type === 'folder' && Array.isArray(it.items)) walkItems(it.items, fn);
+  });
+}
+
+// Los programas se comprueban una sola vez, al abrir los ajustes: lo que se
+// anade desde aqui existe por definicion, y repetirlo en cada repintado seria
+// una vuelta al disco por cada tecla pulsada.
+async function refreshMissing() {
+  const paths = [];
+  wheels.forEach((w) => walkItems(w.items || [], (it) => {
+    if (it.type === 'app') paths.push(it.execPath);
+  }));
+  missing = new Set(await window.nimbo.missingPaths(paths));
+}
+
+// Le dice a main si queda algo sin guardar; lo pregunta al cerrar la ventana.
+// Se llama desde renderSidebar porque todo cambio del arbol o de la cabecera
+// acaba repintandola, asi que no hay que acordarse en cada sitio que edita.
+function syncDirty() {
+  window.nimbo.setSettingsDirty(JSON.stringify(wheels) !== savedSnapshot);
 }
 
 function renderAll() {
@@ -212,6 +262,7 @@ function renderAll() {
 }
 
 function renderSidebar() {
+  syncDirty();
   const list = document.getElementById('wheel-list');
   list.innerHTML = '';
   wheels.forEach((w) => {
@@ -232,6 +283,34 @@ function renderSidebar() {
       selectedWheelId = w.id;
       renderAll();
     });
+
+    // Soltar aqui un item del arbol lo manda a esa rueda. Es el unico sitio
+    // donde se ven las demas ruedas, y arrastrar ya es el gesto de mover.
+    const canDrop = () => dragSrc && w.id !== selectedWheelId;
+    row.addEventListener('dragover', (e) => {
+      if (!canDrop()) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      row.classList.add('drop-target');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drop-target'));
+    row.addEventListener('drop', (e) => {
+      if (!canDrop()) return;
+      e.preventDefault();
+      const item = dragSrc.item;
+      const from = dragSrc.items.indexOf(item);
+      const error = from === -1 ? null : moveTreeItem(dragSrc.items, from, w.items, null, 'end', MAX_ITEMS);
+      dragSrc = null;
+      row.classList.remove('drop-target');
+      if (error) {
+        setStatus(error, true);
+        return;
+      }
+      renderAll();
+      // El item desaparece de la vista al irse a otra rueda, asi que se dice.
+      setStatus(`"${item.name}" movido a la rueda "${w.name}".`);
+    });
+
     list.appendChild(row);
   });
 }
@@ -290,6 +369,28 @@ function renderWheelEditor(wheel, main) {
   const treeRoot = document.createElement('div');
   treeRoot.id = 'tree-root';
   main.appendChild(treeRoot);
+
+  // Plegar todo de una vez. Solo aparece si hay carpetas: sin ellas seria un
+  // boton que no hace nada. Pliega salvo que ya este todo plegado.
+  const folderIds = [];
+  walkItems(wheel.items, (it) => {
+    if (it.type === 'folder') folderIds.push(it.id);
+  });
+  if (folderIds.length > 0) {
+    const allCollapsed = folderIds.every((id) => collapsed.has(id));
+    const toggleAll = document.createElement('button');
+    toggleAll.className = 'small-btn';
+    toggleAll.textContent = allCollapsed ? '▾ Desplegar todo' : '▸ Plegar todo';
+    toggleAll.addEventListener('click', () => {
+      folderIds.forEach((id) => (allCollapsed ? collapsed.delete(id) : collapsed.add(id)));
+      renderAll();
+    });
+    const headerRow = document.createElement('div');
+    headerRow.className = 'tree-actions';
+    headerRow.appendChild(toggleAll);
+    treeRoot.appendChild(headerRow);
+  }
+
   renderTree(wheel.items, treeRoot, 0);
 
   const rootActions = makeActionsRow(wheel.items);
@@ -298,9 +399,30 @@ function renderWheelEditor(wheel, main) {
 
 function renderTree(items, container, depth) {
   items.forEach((item, idx) => {
+    const isFolder = item.type === 'folder';
+    if (isFolder && !Array.isArray(item.items)) item.items = [];
+    const isCollapsed = isFolder && collapsed.has(item.id);
+
     const row = document.createElement('div');
     row.className = 'tree-row';
     row.style.marginLeft = `${depth * 18}px`;
+    row.draggable = true;
+    attachDrag(row, items, item);
+
+    // Flecha de plegado. En lo que no es carpeta se queda un hueco vacio del
+    // mismo ancho para que las columnas de todas las filas sigan alineadas.
+    const caret = document.createElement(isFolder ? 'button' : 'span');
+    caret.className = 'tree-caret';
+    if (isFolder) {
+      caret.textContent = isCollapsed ? '▸' : '▾';
+      caret.title = isCollapsed ? `Desplegar (${item.items.length})` : 'Plegar';
+      caret.addEventListener('click', () => {
+        if (isCollapsed) collapsed.delete(item.id);
+        else collapsed.add(item.id);
+        renderAll();
+      });
+    }
+    row.appendChild(caret);
 
     // La posicion en el array ES la tecla 1-9 que abre el elemento en la
     // rueda, asi que se muestra para que reordenar no sea una sorpresa.
@@ -340,6 +462,16 @@ function renderTree(items, container, depth) {
     name.textContent = item.name;
     row.appendChild(name);
 
+    if (item.type === 'app' && missing.has(item.execPath)) {
+      row.classList.add('missing');
+      const warn = document.createElement('span');
+      warn.className = 'tree-warn';
+      warn.textContent = '⚠️';
+      warn.title = `No se encuentra ${item.execPath}
+En la rueda no hara nada.`;
+      row.appendChild(warn);
+    }
+
     if (item.type === 'link') {
       const urlSpan = document.createElement('span');
       urlSpan.className = 'tree-url';
@@ -355,6 +487,7 @@ function renderTree(items, container, depth) {
       cb.checked = item.toggleClose !== false;
       cb.addEventListener('change', () => {
         item.toggleClose = cb.checked;
+        syncDirty(); // no repinta nada, hay que avisar a mano
       });
       label.appendChild(cb);
       label.appendChild(document.createTextNode('Cerrar si abierto'));
@@ -373,9 +506,10 @@ function renderTree(items, container, depth) {
     });
     row.appendChild(renameBtn);
 
-    // Subir/bajar en vez de arrastrar: menos codigo, funciona con teclado y
-    // no hace falta ninguna libreria. Se deshabilitan en los extremos en vez
-    // de dejarlos sin efecto, para que quede claro por que no hacen nada.
+    // Subir/bajar se quedan aunque se pueda arrastrar: para moverse un puesto
+    // son mas precisos que apuntar con el raton, y funcionan con teclado. Se
+    // deshabilitan en los extremos en vez de dejarlos sin efecto, para que
+    // quede claro por que no hacen nada.
     const upBtn = document.createElement('button');
     upBtn.className = 'tree-icon-btn';
     upBtn.textContent = '▲';
@@ -400,7 +534,7 @@ function renderTree(items, container, depth) {
 
     const delBtn = document.createElement('button');
     delBtn.className = 'tree-del';
-    delBtn.textContent = '🗑';
+    delBtn.textContent = '🗑️';
     delBtn.title = 'Quitar';
     delBtn.addEventListener('click', () => {
       if (item.type === 'folder' && item.items && item.items.length > 0) {
@@ -413,8 +547,7 @@ function renderTree(items, container, depth) {
 
     container.appendChild(row);
 
-    if (item.type === 'folder') {
-      if (!Array.isArray(item.items)) item.items = [];
+    if (isFolder && !isCollapsed) {
       const sub = document.createElement('div');
       container.appendChild(sub);
       renderTree(item.items, sub, depth + 1);
@@ -423,6 +556,62 @@ function renderTree(items, container, depth) {
       actions.style.marginLeft = `${(depth + 1) * 18}px`;
       container.appendChild(actions);
     }
+  });
+}
+
+// Donde cae el item segun la altura del puntero sobre la fila: las carpetas
+// tienen tres bandas (encima / dentro / debajo) y el resto dos. Asi reordenar
+// y meter/sacar de carpetas es el mismo gesto, sin teclas ni modos.
+function dropZone(e, row, item) {
+  const rect = row.getBoundingClientRect();
+  const p = (e.clientY - rect.top) / rect.height;
+  if (item.type === 'folder') return p < 0.3 ? 'before' : p > 0.7 ? 'after' : 'inside';
+  return p < 0.5 ? 'before' : 'after';
+}
+
+function attachDrag(row, items, item) {
+  row.addEventListener('dragstart', (e) => {
+    dragSrc = { items, item };
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', item.name);
+    row.classList.add('dragging');
+  });
+
+  // Un drop valido ya ha vuelto a pintar el arbol y esta fila ya no existe;
+  // esto limpia el caso contrario (soltar fuera, o cancelar con Escape).
+  row.addEventListener('dragend', () => {
+    dragSrc = null;
+    row.classList.remove('dragging');
+    delete row.dataset.drop;
+  });
+
+  row.addEventListener('dragover', (e) => {
+    if (!dragSrc) return; // arrastre de ficheros: lo lleva el drop de ventana
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    row.dataset.drop = dropZone(e, row, item);
+  });
+  row.addEventListener('dragleave', () => delete row.dataset.drop);
+
+  row.addEventListener('drop', (e) => {
+    if (!dragSrc) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const zone = dropZone(e, row, item);
+    // El indice de origen se busca aqui y no al empezar a arrastrar: guardado
+    // desde el dragstart, cualquier repintado por el camino lo dejaria
+    // apuntando a otro item y el movimiento saldria mal en silencio.
+    const from = dragSrc.items.indexOf(dragSrc.item);
+    const error = from === -1 ? null : moveTreeItem(dragSrc.items, from, items, item, zone, MAX_ITEMS);
+    dragSrc = null;
+    if (error) {
+      delete row.dataset.drop;
+      setStatus(error, true);
+      return;
+    }
+    if (zone === 'inside') collapsed.delete(item.id); // que se vea donde cayo
+    renderAll();
   });
 }
 
@@ -437,9 +626,12 @@ function makeActionsRow(targetItems) {
     makeAddButton(targetItems, '+ Añadir enlace', async () => {
       const name = await showPrompt('Nombre del enlace:');
       if (!name) return;
-      let url = await showPrompt('URL:', 'https://');
+      let url = await showPrompt('URL, o ruta de una carpeta del equipo:', 'https://');
       if (!url || url === 'https://') return;
-      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      // Una ruta de Windows (D:\Cosas) o un recurso de red (\\servidor) se
+      // guarda tal cual: la abre el explorador. Al resto se le pone https://.
+      const isLocalPath = /^[a-z]:[\\/]|^\\\\/i.test(url);
+      if (!isLocalPath && !/^https?:\/\//i.test(url)) url = 'https://' + url;
       targetItems.push({ id: newId(), type: 'link', name, url });
       renderAll();
     })
@@ -717,7 +909,7 @@ document.getElementById('add-wheel').addEventListener('click', async () => {
   renderAll();
 });
 
-document.getElementById('save').addEventListener('click', async () => {
+async function saveWheels() {
   // Los duplicados los sabemos sin salir de aqui, asi que ni guardamos: si lo
   // hicieramos, la segunda rueda con el atajo repetido se quedaria muda.
   const used = new Map();
@@ -730,12 +922,32 @@ document.getElementById('save').addEventListener('click', async () => {
     used.set(w.shortcut, w.name);
   }
 
-  const { failed } = await window.nimbo.saveWheelsConfig(wheels);
+  const { failed, error } = await window.nimbo.saveWheelsConfig(wheels);
+  if (error) {
+    setStatus(error, true);
+    return;
+  }
+  // Aunque algun atajo no se haya registrado, en disco ya esta: la ventana se
+  // puede cerrar sin perder nada y no hay que avisar de cambios pendientes.
+  savedSnapshot = JSON.stringify(wheels);
+  syncDirty();
   if (failed.length > 0) {
     const list = failed.map((f) => `"${f.shortcut}" (${f.wheel})`).join(', ');
     setStatus(`Guardado, pero estos atajos no se han podido registrar: ${list}`, true);
   } else {
     setStatus('Guardado ✓ (atajos actualizados)');
+  }
+}
+
+document.getElementById('save').addEventListener('click', saveWheels);
+
+// Ctrl+S. La captura de atajos se traga el teclado mientras esta activa (su
+// listener va en fase de captura), asi que no se dispara sin querer al asignar
+// un atajo que lleve Ctrl+S.
+window.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && !e.altKey && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    saveWheels();
   }
 });
 
@@ -761,7 +973,12 @@ function hideDropOverlay() {
   dropOverlay.hidden = true;
 }
 
+// Solo nos interesa lo que viene de fuera (ficheros del explorador). El
+// arrastre interno del arbol lo gestionan las propias filas.
+const isFileDrag = (e) => Array.from(e.dataTransfer.types).includes('Files');
+
 window.addEventListener('dragenter', (e) => {
+  if (!isFileDrag(e)) return;
   e.preventDefault();
   dragDepth++;
   const target = dropTarget();
@@ -771,13 +988,17 @@ window.addEventListener('dragenter', (e) => {
   dropOverlay.hidden = false;
 });
 
-window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('dragover', (e) => {
+  if (isFileDrag(e)) e.preventDefault();
+});
 
-window.addEventListener('dragleave', () => {
+window.addEventListener('dragleave', (e) => {
+  if (!isFileDrag(e)) return;
   if (--dragDepth <= 0) hideDropOverlay();
 });
 
 window.addEventListener('drop', async (e) => {
+  if (!isFileDrag(e)) return;
   // Sin esto, Electron navegaria la ventana al fichero soltado y perderias
   // los cambios sin guardar.
   e.preventDefault();
