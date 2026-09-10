@@ -45,7 +45,10 @@ jobs:
             exit 1
           fi
 
-      - run: npm run dist
+      # --publish never: con un tag delante, electron-builder intenta crear la
+      # release el solo y muere pidiendo un token. Aqui solo compila; publicar
+      # es el paso siguiente, con gh y el token que ya trae el runner.
+      - run: npm run dist -- --publish never
 
       - name: Crear la release
         shell: bash
