@@ -1,0 +1,57 @@
+# Publica la release al empujar un tag vX.Y.Z:
+#
+#   npm version 0.3.0 --no-git-tag-version   (o edita package.json a mano)
+#   git commit -am "Version 0.3.0" && git push
+#   git tag v0.3.0 && git push origin v0.3.0
+#
+# Windows es obligatorio: el target es NSIS y electron-builder lo construye
+# con herramientas de Windows. Las notas las genera GitHub con los commits
+# desde la release anterior.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # crear la release y subirle el instalador
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Los seis checks antes de publicar nada: son dos segundos y evitan
+      # colgar en GitHub un instalador con algo roto dentro.
+      - run: npm test
+
+      # El instalador lleva la version de package.json en el nombre, asi que
+      # un tag que no coincida publicaria un fichero que dice otra cosa.
+      - name: Comprobar que el tag y package.json coinciden
+        shell: bash
+        run: |
+          pkg=$(node -p "require('./package.json').version")
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$pkg" != "$tag" ]; then
+            echo "El tag es v$tag pero package.json dice $pkg"
+            exit 1
+          fi
+
+      - run: npm run dist
+
+      - name: Crear la release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Sin comodin: el fichero lleva espacios ("Nimbo Setup 0.2.0.exe") y sin
+        # comillas se partiria en tres argumentos. El nombre es seguro porque
+        # el paso anterior ya ha comprobado que la version cuadra con el tag.
+        run: gh release create "$GITHUB_REF_NAME" "dist/Nimbo Setup ${GITHUB_REF_NAME#v}.exe" --title "Nimbo $GITHUB_REF_NAME" --generate-notes

@@ -110,6 +110,24 @@ Ojo con la cache si has sufrido esto: cada intento fallido deja una carpeta
 huerfana y su `.7z` de 5,6 MB en `winCodeSign/`. Se acumulan rapido (llegaron a
 225 MB aqui); se pueden borrar todas menos `winCodeSign-2.6.0`.
 
+### Publicar una versión
+
+`.github/workflows/release.yml` compila y publica sola al empujar un tag:
+
+```bash
+npm version 0.3.0 --no-git-tag-version   # o edita package.json a mano
+git commit -am "Version 0.3.0" && git push
+git tag v0.3.0 && git push origin v0.3.0
+```
+
+Corre los tests, comprueba que el tag coincide con `package.json`, compila el
+NSIS en Windows y crea la release con el instalador y las notas generadas de
+los commits. Si el tag y la versión no cuadran, falla antes de publicar nada.
+
+Para actualizar: ejecutar el instalador nuevo encima del anterior. No hace
+falta desinstalar y la configuración (`%APPDATA%\Nimbo\config.json`) no se
+toca; cierra Nimbo desde la bandeja antes de instalar.
+
 ## Uso
 
 ### La rueda
