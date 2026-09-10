@@ -1,7 +1,7 @@
 {
   "name": "nimbo",
   "productName": "Nimbo",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Menu radial para Windows: un atajo, una rueda, tus programas.",
   "author": "Juan Romero",
   "private": true,

@@ -404,16 +404,44 @@ ipcMain.handle('pick-icon-file', async () => {
 ipcMain.handle('launch-app', async (_evt, execPath, toggleClose = true, args = '') => {
   hideRadial();
 
-  const running = toggleClose ? await findRunningProcesses(execPath) : [];
-  if (running.length > 0) {
+  const { running, mismatched } = toggleClose
+    ? await findRunningProcesses(execPath)
+    : { running: [], mismatched: [] };
+  // Los de ruta distinta se cierran igual que los demas. Hilar mas fino no
+  // compensa: coincide el nombre del ejecutable, casi siempre es el mismo
+  // programa movido de sitio, y no cerrarlo deja el interruptor sin funcionar,
+  // que es el fallo que se quiere arreglar. El limite lo pone la regla de
+  // abajo, que no cambia: a la fuerza solo lo que no tiene ventana.
+  const all = [...running, ...mismatched];
+  if (all.length > 0) {
     // Apps sin ventana (bandeja, ej. NVDA): no pueden tener dialogos de
     // "guardar cambios", asi que cerrarlas forzado es seguro.
-    const headless = running.filter((p) => !p.hasWindow).map((p) => p.pid);
+    const headless = all.filter((p) => !p.hasWindow).map((p) => p.pid);
     // Apps con ventana: cierre normal (como pulsar la X), nunca forzado,
     // para no perder cambios sin guardar.
-    const windowed = running.filter((p) => p.hasWindow).map((p) => p.pid);
-    closeProcesses(headless, true);
-    closeProcesses(windowed, false);
+    const windowed = all.filter((p) => p.hasWindow).map((p) => p.pid);
+    // Los dos cierres se ejecutan siempre: con un && el segundo se saltaria
+    // cuando el primero falla, y quedarian procesos vivos sin intentarlo.
+    const okHeadless = closeProcesses(headless, true);
+    const okWindowed = closeProcesses(windowed, false);
+    // Un proceso elevado rechaza el cierre. Lo unico que no se puede hacer es
+    // callarse: sin aviso, "cerrar" parece que no hace nada.
+    if (!(okHeadless && okWindowed) && all.some((p) => p.blind)) {
+      notify(
+        'Nimbo: no se pudo cerrar',
+        `${path.basename(execPath)} está abierto pero no deja cerrarse desde aquí.\n` +
+          'Suele pasar con programas que corren como administrador: ciérralo desde su ventana o su icono de la bandeja.'
+      );
+    } else if (mismatched.length > 0) {
+      // Se ha cerrado, pero desde otra carpeta: la ruta guardada esta vieja y
+      // conviene corregirla, o abrirlo desde la rueda seguira sin funcionar.
+      notify(
+        'Nimbo: cerrado, pero la ruta no cuadra',
+        `Se ha cerrado "${path.basename(execPath)}", que estaba abierto desde:\n${mismatched[0].path}\n` +
+          `Este elemento apunta a:\n${execPath}\n` +
+          'Vuelve a añadirlo en Configurar para que abrirlo funcione también.'
+      );
+    }
     return;
   }
 

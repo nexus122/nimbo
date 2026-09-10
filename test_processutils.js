@@ -33,7 +33,25 @@ assert.deepStrictEqual(parseWindowsArgs('C:\\Users\\juan\\app.exe'), ['C:\\Users
 (async () => {
   // humo: una ruta que no existe como proceso no debe explotar, solo dar []
   const result = await findRunningProcesses('C:\\ruta\\que\\no\\existe\\nada.exe');
-  assert.deepStrictEqual(result, []);
+  assert.deepStrictEqual(result, { running: [], mismatched: [] });
+
+  // El propio node si esta corriendo: debe encontrarse a si mismo y traer la
+  // forma que espera main.js para decidir como cerrar cada proceso.
+  const self = await findRunningProcesses(process.execPath);
+  assert.ok(self.running.length > 0, 'deberia encontrar el proceso de node en marcha');
+  self.running.forEach((p) => {
+    assert.ok(Number.isFinite(p.pid), 'cada proceso trae su pid');
+    assert.strictEqual(typeof p.hasWindow, 'boolean', 'cada proceso dice si tiene ventana');
+  });
+
+  // El mismo ejecutable escrito en formato corto (8.3) tiene que encontrarse
+  // igual: es el caso que dejaba "cerrar si abierto" sin efecto, porque un
+  // acceso directo puede guardar la ruta asi y Get-Process la da larga.
+  const short = process.execPath.replace(/\\Program Files\\/i, '\\PROGRA~1\\');
+  if (short !== process.execPath) {
+    const viaShort = await findRunningProcesses(short);
+    assert.ok(viaShort.running.length > 0, 'la ruta en formato corto debe encontrar el mismo proceso');
+  }
 
   console.log('ok: parseWindowsArgs y findRunningProcesses (humo)');
 })();

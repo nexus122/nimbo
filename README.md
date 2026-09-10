@@ -290,12 +290,13 @@ conviene saberlas antes de "simplificarlas":
   arranca con la configuración por defecto y **no deja guardar** hasta que se
   reinicie: tus ruedas siguen intactas en el fichero y guardar las vacías se
   las llevaría por delante.
-- **`Get-Process` no ve la ruta de los procesos elevados**, así que "cerrar si
-  abierto" no funciona con programas que corren como administrador. Está
-  comprobado que `Get-CimInstance Win32_Process` tampoco los ve desde una
-  sesión sin elevar (mismos procesos ilegibles por ambas vías), así que no hay
-  arreglo sin elevar Nimbo entero. Al menos ya no falla en silencio: avisa por
-  consola con los PID afectados.
+- **`Get-Process` no ve la ruta de los procesos elevados.** Está comprobado que
+  `Get-CimInstance Win32_Process` tampoco los ve desde una sesión sin elevar
+  (mismos procesos ilegibles por ambas vías), así que no hay forma de
+  confirmarlos por ruta sin elevar Nimbo entero. En ese caso se cierran por
+  nombre de ejecutable, con la misma regla que el resto (forzado solo si no
+  tienen ventana), y si Windows rechaza el cierre se avisa por globo de la
+  bandeja en vez de fallar en silencio.
 - **Una sola instancia.** Si intentas abrir Nimbo con Nimbo ya en marcha, la
   segunda se cierra y la primera abre la configuración. En desarrollo esto
   significa que `npm start` se cierra solo si tienes la versión instalada
