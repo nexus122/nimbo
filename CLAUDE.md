@@ -26,7 +26,11 @@ Electron sin ventana principal: vive en la bandeja y abre dos ventanas bajo dema
 
 ### Modelo de datos
 
-`%APPDATA%\Nimbo\config.json`: `{ wheels: [...], theme, wheelSize }`. Cada rueda es `{ id, name, shortcut, items }`; cada item es `type: 'app' | 'link' | 'folder'` (las carpetas anidan via `items`). Maximo 8 items por nivel (`MAX_ITEMS` en `settings.js`) — es un limite de diseno de la rueda, no arbitrario.
+`%APPDATA%\Nimbo\config.json`: `{ wheels: [...], theme, wheelSize }`. Cada rueda es `{ id, name, shortcut, items }`; cada item es `type: 'app' | 'link' | 'folder' | 'macro' | 'script'` (carpetas y macros anidan via `items`). Maximo 8 items por nivel (`MAX_ITEMS` en `settings.js`) — es un limite de diseno de la rueda, no arbitrario.
+
+Una macro es una carpeta que en vez de navegar hacia dentro, al activarla lanza sus `items` (solo `app`/`link`/`script`; una carpeta u otra macro anidada se ignora, `macroSteps` en `radial.js` las descarta) de uno en uno, con `MACRO_STEP_MS` de espera entre cada uno. Vive entera en el renderer: reutiliza `launchApp`/`openLink`, que ya cierran la rueda y validan cada elemento; no hay handler IPC nuevo.
+
+Un `script` es texto de PowerShell que escribe el usuario (`item.command`); se lanza con el handler `run-script` (unico sitio nuevo de IPC que anadio esto, en `main.js` + `preload.js`), separado de `launch-app`/`open-link` porque ejecuta lo que sea, no un ejecutable conocido. **Sin `detached`, a proposito** (comentario `ponytail:` junto al handler): con `detached:true` el proceso se crea pero el script no llega a ejecutar ni su primera linea, sin ningun error — probado lanzandolo de verdad, no es una suposicion. `launchCommand()` en `treeMove.js` (junto a `moveTreeItem`, testeable con node) traduce un item `app`/`link` a su equivalente en PowerShell (`Start-Process ...`) solo para mostrarlo como referencia al escribir un script; no es lo que Nimbo ejecuta de verdad para esos dos tipos.
 
 Al escribir el config, **conserva siempre el resto** (`saveConfig({ ...loadConfig(), wheels })`): escribir `{ wheels }` a secas se lleva por delante tema y tamano.
 

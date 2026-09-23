@@ -465,6 +465,35 @@ ipcMain.handle('launch-app', async (_evt, execPath, toggleClose = true, args = '
   if (result) notify('Nimbo: no se pudo abrir', `${execPath}\n${result}`);
 });
 
+// El item 'script': el usuario escribe el comando el mismo. Se lanza como
+// PowerShell porque ya es lo unico asumido en este proyecto (ver appScanner,
+// que lee los .lnk asi) y esta en cualquier Windows sin instalar nada.
+// ponytail: SIN detached (a diferencia de launch-app con argumentos). Se
+// probo lanzando un script real: con detached:true + stdio:'ignore' el
+// proceso se crea (tiene pid) pero el script nunca llega a ejecutarse, ni
+// su primera linea, sin ningun error - un fallo silencioso total. Sin
+// detached funciona. Coste: el script muere si Nimbo se cierra mientras
+// corre (launch-app no tiene este problema). Si algun dia hace falta que
+// sobreviva, investigar por que detached rompe esta combinacion en concreto.
+ipcMain.handle('run-script', async (_evt, command) => {
+  hideRadial();
+  try {
+    const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], {
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+    // stdio ignorado del todo (como launch-app) dejaria un script roto sin
+    // ningun aviso, que es precisamente el fallo que costo encontrar esta vez.
+    let stderr = '';
+    child.stderr.on('data', (d) => (stderr += d));
+    child.on('error', (err) => notify('Nimbo: no se pudo ejecutar el script', err.message));
+    child.on('close', (code) => {
+      if (code !== 0 && stderr.trim()) notify('Nimbo: el script fallo', stderr.trim().split('\n')[0]);
+    });
+  } catch (err) {
+    notify('Nimbo: no se pudo ejecutar el script', err.message);
+  }
+});
+
 ipcMain.handle('close-radial', hideRadial);
 
 ipcMain.handle('open-link', async (_evt, url) => {

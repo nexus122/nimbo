@@ -1,6 +1,6 @@
 // Check minimo de la navegacion por teclado de la rueda: `node test_radial.js`
 const assert = require('assert');
-const { nextIndex, shortestAngle, sectorStart } = require('./renderer/radial.js');
+const { nextIndex, shortestAngle, sectorStart, macroSteps } = require('./renderer/radial.js');
 
 // sin items no hay nada que seleccionar
 assert.strictEqual(nextIndex(-1, 1, 0), -1);
@@ -56,5 +56,24 @@ assert.strictEqual(centro(4, 8), 180);  // abajo
 assert.strictEqual(centro(6, 8), 270);  // izquierda
 assert.strictEqual(centro(1, 4), 90);
 assert.strictEqual(centro(0, 1), 0);    // item unico: sector centrado arriba
+
+// --- macroSteps: que se lanza y donde se espera ---
+
+// app/link/script son lanzables; carpeta y macro anidada se descartan
+const steps = macroSteps([
+  { type: 'app', name: 'a' },
+  { type: 'folder', name: 'F', items: [] },
+  { type: 'link', name: 'b' },
+  { type: 'macro', name: 'M', items: [] },
+  { type: 'script', name: 'c' },
+]);
+assert.strictEqual(steps.map((s) => s.item.name).join(','), 'a,b,c');
+
+// se espera tras cada uno menos el ultimo
+assert.deepStrictEqual(steps.map((s) => s.wait), [true, true, false]);
+
+// lista vacia o de un solo elemento: sin espera
+assert.deepStrictEqual(macroSteps([]), []);
+assert.strictEqual(macroSteps([{ type: 'app', name: 'a' }])[0].wait, false);
 
 console.log('ok: navegacion de la rueda');

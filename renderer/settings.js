@@ -41,15 +41,23 @@ function setStatus(text, error = false) {
 
 // window.prompt() no esta soportado en Electron (window.confirm() si), asi
 // que usamos un cuadro de dialogo propio para pedir texto al usuario.
-function showPrompt(title, defaultValue = '') {
+// `multiline`: textarea en vez de input, para comandos de varias lineas (un
+// input de una sola linea se queda corto para leer codigo).
+function showPrompt(title, defaultValue = '', multiline = false) {
   return new Promise((resolve) => {
     const overlay = document.getElementById('prompt-overlay');
+    const box = document.getElementById('prompt-box');
     const input = document.getElementById('prompt-input');
+    const textarea = document.getElementById('prompt-textarea');
+    const field = multiline ? textarea : input;
     document.getElementById('prompt-title').textContent = title;
-    input.value = defaultValue;
+    input.hidden = multiline;
+    textarea.hidden = !multiline;
+    box.classList.toggle('wide', multiline);
+    field.value = defaultValue;
     overlay.hidden = false;
-    input.focus();
-    input.select();
+    field.focus();
+    field.select();
 
     // AbortController quita todos los listeners de una vez. Antes habia que
     // acordarse de un removeEventListener por cada uno, y olvidar uno deja el
@@ -61,12 +69,13 @@ function showPrompt(title, defaultValue = '') {
       ac.abort();
       resolve(value);
     };
-    const ok = () => done(input.value.trim() || null);
+    const ok = () => done(field.value.trim() || null);
 
     document.getElementById('prompt-ok').addEventListener('click', ok, { signal });
     document.getElementById('prompt-cancel').addEventListener('click', () => done(null), { signal });
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') ok();
+    field.addEventListener('keydown', (e) => {
+      // En el textarea, Enter escribe una linea nueva; solo Escape cierra.
+      if (e.key === 'Enter' && !multiline) ok();
       if (e.key === 'Escape') done(null);
     }, { signal });
   });
@@ -224,7 +233,7 @@ async function init() {
 function walkItems(items, fn) {
   items.forEach((it) => {
     fn(it);
-    if (it.type === 'folder' && Array.isArray(it.items)) walkItems(it.items, fn);
+    if ((it.type === 'folder' || it.type === 'macro') && Array.isArray(it.items)) walkItems(it.items, fn);
   });
 }
 
@@ -374,7 +383,7 @@ function renderWheelEditor(wheel, main) {
   // boton que no hace nada. Pliega salvo que ya este todo plegado.
   const folderIds = [];
   walkItems(wheel.items, (it) => {
-    if (it.type === 'folder') folderIds.push(it.id);
+    if (it.type === 'folder' || it.type === 'macro') folderIds.push(it.id);
   });
   if (folderIds.length > 0) {
     const allCollapsed = folderIds.every((id) => collapsed.has(id));
@@ -400,8 +409,10 @@ function renderWheelEditor(wheel, main) {
 function renderTree(items, container, depth) {
   items.forEach((item, idx) => {
     const isFolder = item.type === 'folder';
-    if (isFolder && !Array.isArray(item.items)) item.items = [];
-    const isCollapsed = isFolder && collapsed.has(item.id);
+    const isMacro = item.type === 'macro';
+    const isContainer = isFolder || isMacro;
+    if (isContainer && !Array.isArray(item.items)) item.items = [];
+    const isCollapsed = isContainer && collapsed.has(item.id);
 
     const row = document.createElement('div');
     row.className = 'tree-row';
@@ -409,11 +420,12 @@ function renderTree(items, container, depth) {
     row.draggable = true;
     attachDrag(row, items, item);
 
-    // Flecha de plegado. En lo que no es carpeta se queda un hueco vacio del
-    // mismo ancho para que las columnas de todas las filas sigan alineadas.
-    const caret = document.createElement(isFolder ? 'button' : 'span');
+    // Flecha de plegado. En lo que no es carpeta ni macro se queda un hueco
+    // vacio del mismo ancho para que las columnas de todas las filas sigan
+    // alineadas.
+    const caret = document.createElement(isContainer ? 'button' : 'span');
     caret.className = 'tree-caret';
-    if (isFolder) {
+    if (isContainer) {
       caret.textContent = isCollapsed ? '▸' : '▾';
       caret.title = isCollapsed ? `Desplegar (${item.items.length})` : 'Plegar';
       caret.addEventListener('click', () => {
@@ -437,9 +449,10 @@ function renderTree(items, container, depth) {
       img.src = item.icon || '';
       row.appendChild(img);
     } else {
-      // Carpeta o enlace: icono por defecto (emoji) o personalizado (otro
-      // emoji o una imagen). Click en el icono para cambiarlo.
-      const defaultEmoji = item.type === 'folder' ? '📁' : '🔗';
+      // Carpeta, macro o enlace: icono por defecto (emoji) o personalizado
+      // (otro emoji o una imagen). Click en el icono para cambiarlo.
+      const defaultEmoji =
+        item.type === 'folder' ? '📁' : item.type === 'macro' ? '⚡' : item.type === 'script' ? '📜' : '🔗';
       const isCustomImage = item.icon && item.icon.startsWith('data:');
       const iconEl = document.createElement(isCustomImage ? 'img' : 'span');
       iconEl.className = isCustomImage ? 'tree-icon' : 'tree-folder-icon';
@@ -472,10 +485,10 @@ En la rueda no hara nada.`;
       row.appendChild(warn);
     }
 
-    if (item.type === 'link') {
+    if (item.type === 'link' || item.type === 'script') {
       const urlSpan = document.createElement('span');
       urlSpan.className = 'tree-url';
-      urlSpan.textContent = item.url;
+      urlSpan.textContent = item.type === 'link' ? item.url : item.command;
       row.appendChild(urlSpan);
     }
 
@@ -505,6 +518,26 @@ En la rueda no hara nada.`;
       renderAll();
     });
     row.appendChild(renameBtn);
+
+    if (item.type === 'app' || item.type === 'link' || item.type === 'script') {
+      const cmdBtn = document.createElement('button');
+      cmdBtn.className = 'tree-icon-btn';
+      cmdBtn.textContent = '🖥️';
+      cmdBtn.title = item.type === 'script' ? 'Editar comando' : 'Ver comando equivalente en PowerShell';
+      cmdBtn.addEventListener('click', async () => {
+        if (item.type === 'script') {
+          const command = await showPrompt('Comando de PowerShell:', item.command, true);
+          if (!command) return;
+          item.command = command;
+          renderAll();
+        } else {
+          // Solo lectura: es para copiar o para partir de ahi al escribir un
+          // script propio, no cambia como lanza Nimbo este item por dentro.
+          await showPrompt('Comando equivalente (cópialo si quieres):', launchCommand(item), true);
+        }
+      });
+      row.appendChild(cmdBtn);
+    }
 
     // Subir/bajar se quedan aunque se pueda arrastrar: para moverse un puesto
     // son mas precisos que apuntar con el raton, y funcionan con teclado. Se
@@ -537,7 +570,7 @@ En la rueda no hara nada.`;
     delBtn.textContent = '🗑️';
     delBtn.title = 'Quitar';
     delBtn.addEventListener('click', () => {
-      if (item.type === 'folder' && item.items && item.items.length > 0) {
+      if (isContainer && item.items && item.items.length > 0) {
         if (!confirm(`"${item.name}" tiene ${item.items.length} elemento(s) dentro. ¿Eliminar de todos modos?`)) return;
       }
       items.splice(idx, 1);
@@ -547,12 +580,15 @@ En la rueda no hara nada.`;
 
     container.appendChild(row);
 
-    if (isFolder && !isCollapsed) {
+    if (isContainer && !isCollapsed) {
       const sub = document.createElement('div');
       container.appendChild(sub);
       renderTree(item.items, sub, depth + 1);
 
-      const actions = makeActionsRow(item.items);
+      // Una macro se queda plana: carpetas y macros dentro de una macro no
+      // tendrian nada que ejecutar (macroSteps las descarta), asi que no se
+      // ofrece anidar mas.
+      const actions = makeActionsRow(item.items, !isMacro);
       actions.style.marginLeft = `${(depth + 1) * 18}px`;
       container.appendChild(actions);
     }
@@ -565,7 +601,7 @@ En la rueda no hara nada.`;
 function dropZone(e, row, item) {
   const rect = row.getBoundingClientRect();
   const p = (e.clientY - rect.top) / rect.height;
-  if (item.type === 'folder') return p < 0.3 ? 'before' : p > 0.7 ? 'after' : 'inside';
+  if (item.type === 'folder' || item.type === 'macro') return p < 0.3 ? 'before' : p > 0.7 ? 'after' : 'inside';
   return p < 0.5 ? 'before' : 'after';
 }
 
@@ -616,7 +652,9 @@ function attachDrag(row, items, item) {
 }
 
 // Todos los "+ Anadir" pasan por aqui, asi el tope se aplica en un solo sitio.
-function makeActionsRow(targetItems) {
+// `allowNesting` = false dentro de una macro: ahi solo tienen sentido
+// programas y enlaces, ver el comentario en la llamada.
+function makeActionsRow(targetItems, allowNesting = true) {
   const actions = document.createElement('div');
   actions.className = 'tree-actions';
 
@@ -638,13 +676,35 @@ function makeActionsRow(targetItems) {
   );
 
   actions.appendChild(
-    makeAddButton(targetItems, '+ Añadir carpeta', async () => {
-      const name = await showPrompt('Nombre de la carpeta:');
+    makeAddButton(targetItems, '+ Añadir script', async () => {
+      const name = await showPrompt('Nombre del script:');
       if (!name) return;
-      targetItems.push({ id: newId(), type: 'folder', name, items: [] });
+      const command = await showPrompt('Comando de PowerShell:', '', true);
+      if (!command) return;
+      targetItems.push({ id: newId(), type: 'script', name, command });
       renderAll();
     })
   );
+
+  if (allowNesting) {
+    actions.appendChild(
+      makeAddButton(targetItems, '+ Añadir carpeta', async () => {
+        const name = await showPrompt('Nombre de la carpeta:');
+        if (!name) return;
+        targetItems.push({ id: newId(), type: 'folder', name, items: [] });
+        renderAll();
+      })
+    );
+
+    actions.appendChild(
+      makeAddButton(targetItems, '+ Añadir macro', async () => {
+        const name = await showPrompt('Nombre de la macro:');
+        if (!name) return;
+        targetItems.push({ id: newId(), type: 'macro', name, items: [] });
+        renderAll();
+      })
+    );
+  }
 
   const count = document.createElement('span');
   count.className = 'items-count' + (targetItems.length >= MAX_ITEMS ? ' full' : '');

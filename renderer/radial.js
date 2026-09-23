@@ -34,10 +34,41 @@ function activate(item) {
   if (item.type === 'folder') {
     stack.push(Array.isArray(item.items) ? item.items : []);
     renderLevel();
+  } else if (item.type === 'macro') {
+    runMacro(Array.isArray(item.items) ? item.items : []);
+  } else if (item.type === 'script') {
+    window.nimbo.runScript(item.command);
   } else if (item.type === 'link') {
     window.nimbo.openLink(item.url);
   } else {
     window.nimbo.launchApp(item.execPath, item.toggleClose !== false, item.args);
+  }
+}
+
+// Cuanto se espera entre un lanzamiento y el siguiente dentro de una macro.
+// Abrirlos todos en el mismo instante amontona a Windows (disco, orden de
+// ventanas); esto los deja en cola, de uno en uno.
+const MACRO_STEP_MS = 800;
+
+// Que hacer con cada item de una macro y si tocar esperar despues del suyo.
+// Pura y sin IPC, para poder probarla con node a secas igual que el resto de
+// este fichero. Carpetas u otras macros metidas dentro no tienen un
+// lanzamiento que ejecutar, asi que se descartan en vez de fallar.
+function macroSteps(items) {
+  const launchable = items.filter((it) => it.type === 'app' || it.type === 'link' || it.type === 'script');
+  return launchable.map((item, i) => ({ item, wait: i < launchable.length - 1 }));
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function runMacro(items) {
+  for (const { item, wait } of macroSteps(items)) {
+    if (item.type === 'link') await window.nimbo.openLink(item.url);
+    else if (item.type === 'script') await window.nimbo.runScript(item.command);
+    else await window.nimbo.launchApp(item.execPath, item.toggleClose !== false, item.args);
+    if (wait) await sleep(MACRO_STEP_MS);
   }
 }
 
@@ -144,12 +175,14 @@ function renderLevel() {
     const y = cy + radius * Math.sin(angle);
 
     const slice = document.createElement('div');
-    slice.className = 'slice' + (item.type === 'folder' || item.type === 'link' ? ' folder' : '');
+    const hasEmojiIcon = item.type === 'folder' || item.type === 'link' || item.type === 'macro' || item.type === 'script';
+    slice.className = 'slice' + (hasEmojiIcon ? ' folder' : '');
     slice.style.left = `${x}px`;
     slice.style.top = `${y}px`;
 
-    if (item.type === 'folder' || item.type === 'link') {
-      const defaultEmoji = item.type === 'folder' ? '📁' : '🔗';
+    if (hasEmojiIcon) {
+      const defaultEmoji =
+        item.type === 'folder' ? '📁' : item.type === 'macro' ? '⚡' : item.type === 'script' ? '📜' : '🔗';
       const isCustomImage = item.icon && item.icon.startsWith('data:');
       const iconEl = document.createElement(isCustomImage ? 'img' : 'div');
       if (!isCustomImage) {
@@ -243,7 +276,7 @@ function onKeydown(e) {
 // En el navegador arrancamos; requerido desde node (test_radial.js) solo
 // exponemos las funciones puras, sin tocar el DOM que alli no existe.
 if (typeof document === 'undefined') {
-  module.exports = { nextIndex, shortestAngle, sectorStart };
+  module.exports = { nextIndex, shortestAngle, sectorStart, macroSteps };
 } else {
   document.addEventListener('keydown', onKeydown);
   init();

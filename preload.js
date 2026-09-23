@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('nimbo', {
   setAutostart: (enabled) => ipcRenderer.invoke('set-autostart', enabled),
   launchApp: (execPath, toggleClose, args) => ipcRenderer.invoke('launch-app', execPath, toggleClose, args),
   openLink: (url) => ipcRenderer.invoke('open-link', url),
+  runScript: (command) => ipcRenderer.invoke('run-script', command),
   closeRadial: () => ipcRenderer.invoke('close-radial'),
   openSettings: () => ipcRenderer.invoke('open-settings'),
 });

@@ -518,6 +518,10 @@
         border: 1px solid var(--fill-2);
         padding: 16px;
       }
+      /* Comandos: el input de una linea se queda corto para leer codigo. */
+      #prompt-box.wide {
+        width: 480px;
+      }
       #prompt-title {
         font-size: 13px;
         margin-bottom: 10px;
@@ -533,6 +537,24 @@
         margin-bottom: 12px;
       }
       #prompt-input:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      #prompt-textarea {
+        width: 100%;
+        min-height: 130px;
+        padding: 8px 10px;
+        font-size: 12.5px;
+        font-family: 'Cascadia Mono', Consolas, monospace;
+        line-height: 1.5;
+        background: var(--fill-1);
+        border: 1px solid var(--line-hi);
+        border-radius: 6px;
+        color: var(--text);
+        margin-bottom: 12px;
+        resize: vertical;
+      }
+      #prompt-textarea:focus {
         outline: none;
         border-color: var(--accent);
       }
@@ -737,6 +759,7 @@
       <div id="prompt-box">
         <div id="prompt-title"></div>
         <input id="prompt-input" />
+        <textarea id="prompt-textarea" rows="7" spellcheck="false" hidden></textarea>
         <div id="prompt-actions">
           <button id="prompt-cancel" class="small-btn">Cancelar</button>
           <button id="prompt-ok" class="small-btn">Aceptar</button>

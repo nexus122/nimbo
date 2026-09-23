@@ -3,10 +3,12 @@
 // test_treemove.js la prueba con node a secas. settings.js lo carga con un
 // <script> antes que a si mismo, asi que aqui son funciones globales.
 
-// Una carpeta no puede acabar dentro de si misma (ni de una descendiente):
-// el arbol quedaria en ciclo y dibujar la rueda no terminaria nunca.
+// Una carpeta (o macro, que anida igual) no puede acabar dentro de si misma
+// ni de una descendiente: el arbol quedaria en ciclo y dibujar la rueda no
+// terminaria nunca.
 function containsList(item, list) {
-  if (item.type !== 'folder' || !Array.isArray(item.items)) return false;
+  const isContainer = item.type === 'folder' || item.type === 'macro';
+  if (!isContainer || !Array.isArray(item.items)) return false;
   return item.items === list || item.items.some((child) => containsList(child, list));
 }
 
@@ -32,4 +34,15 @@ function moveTreeItem(src, srcIdx, dest, destItem, zone, max) {
   return null;
 }
 
-if (typeof module !== 'undefined') module.exports = { moveTreeItem, containsList };
+// El comando de PowerShell equivalente a lo que hace un item, para que se
+// pueda copiar y usar de punto de partida en un script propio. No es lo que
+// Nimbo ejecuta por dentro para app/link (eso usa el shell de Electron, ver
+// main.js), es solo la traduccion para quien quiera inspirarse.
+function launchCommand(item) {
+  const quote = (s) => `'${String(s).replace(/'/g, "''")}'`;
+  if (item.type === 'script') return item.command;
+  if (item.type === 'link') return `Start-Process ${quote(item.url)}`;
+  return `Start-Process -FilePath ${quote(item.execPath)}` + (item.args ? ` -ArgumentList ${quote(item.args)}` : '');
+}
+
+if (typeof module !== 'undefined') module.exports = { moveTreeItem, containsList, launchCommand };

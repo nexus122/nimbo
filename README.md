@@ -21,8 +21,13 @@ llamas.
 
 - **Varias ruedas, un atajo cada una.** Una para el trabajo, otra para juegos,
   otra para lo que quieras. Cada una con su propia combinación de teclas.
-- **Tres tipos de elemento:** programas instalados, enlaces web y carpetas
-  (que se pueden anidar, para agrupar sin llenar la rueda).
+- **Cinco tipos de elemento:** programas instalados, enlaces web, carpetas
+  (que se pueden anidar, para agrupar sin llenar la rueda), macros y scripts.
+- **Macros:** una lista de programas, enlaces y/o scripts que se abren de uno
+  en uno al activarla, en cola, no todos de golpe.
+- **Scripts:** un comando de PowerShell que escribes tú. Cada programa y
+  enlace tiene un botón para ver su comando equivalente, como punto de
+  partida.
 - **Se maneja con teclado.** Flechas para moverte por el anillo, `1`-`9` para
   ir directo a un elemento, `Enter` para abrir, `Esc` para salir o retroceder.
 - **Toggle:** si el programa ya está abierto, volver a pulsarlo lo cierra.

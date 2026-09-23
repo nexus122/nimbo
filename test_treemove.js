@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { moveTreeItem, containsList } = require('./renderer/treeMove');
+const { moveTreeItem, containsList, launchCommand } = require('./renderer/treeMove');
 
 const MAX = 8;
 const names = (list) => list.map((i) => i.name).join(',');
@@ -66,10 +66,33 @@ assert.strictEqual(names(otra), 'z,F');
 assert.match(moveTreeItem(t, 0, otra, null, 'end', 2), /máximo/);
 assert.strictEqual(names(t), 'a,b');
 
-// containsList: nietos incluidos
+// containsList: nietos incluidos, y una macro anida igual que una carpeta
 const outer = { type: 'folder', items: [{ type: 'folder', items: [] }] };
 assert.strictEqual(containsList(outer, outer.items[0].items), true);
 assert.strictEqual(containsList(outer, []), false);
 assert.strictEqual(containsList({ type: 'app' }, []), false);
+const macro = { type: 'macro', items: [{ type: 'app', items: [] }] };
+assert.strictEqual(containsList(macro, macro.items), true);
+
+// una macro tambien puede recibir un item por drag&drop, como una carpeta
+t = tree();
+const m = { id: '7', type: 'macro', name: 'M', items: [] };
+t.push(m);
+assert.strictEqual(moveTreeItem(t, 0, t, m, 'inside', MAX), null);
+assert.strictEqual(names(m.items), 'a');
+
+// launchCommand: la traduccion a PowerShell que se ve en el boton de comando
+assert.strictEqual(
+  launchCommand({ type: 'app', execPath: 'C:\\Apps\\a.exe' }),
+  "Start-Process -FilePath 'C:\\Apps\\a.exe'"
+);
+assert.strictEqual(
+  launchCommand({ type: 'app', execPath: 'C:\\Apps\\a.exe', args: '--flag valor' }),
+  "Start-Process -FilePath 'C:\\Apps\\a.exe' -ArgumentList '--flag valor'"
+);
+assert.strictEqual(launchCommand({ type: 'link', url: 'https://x.com' }), "Start-Process 'https://x.com'");
+assert.strictEqual(launchCommand({ type: 'script', command: 'Get-Date' }), 'Get-Date');
+// comillas simples dentro del valor no rompen el comando (se doblan, sintaxis de PowerShell)
+assert.strictEqual(launchCommand({ type: 'link', url: "https://x.com/o'brien" }), "Start-Process 'https://x.com/o''brien'");
 
 console.log('test_treemove: OK');
